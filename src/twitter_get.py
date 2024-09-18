@@ -25,6 +25,8 @@ class Twitter_Client:
 
 
 # インスタンスを作成してからメソッドを呼び出す
+"""
 client = Twitter_Client()
 asyncio.run(client.load_client())
 asyncio.run(client.Twikit_Msg())
+"""

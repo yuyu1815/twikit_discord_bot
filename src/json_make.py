@@ -19,7 +19,7 @@ def Twitter_New_Json_edit():
         json.dump(result, file, indent=4)
 import json
 
-def edit_setting_json(guild_id, channel_id, cool_down_time, setting_channels, twitter_user_ids):
+def edit_setting_json(guild_id, cool_down_time, setting_channels, twitter_user_ids):
     try:
         # guildごとのjsonファイルの読み込み
         with open('./json/DiscordSetting.json', 'r') as file:
@@ -50,3 +50,10 @@ def load_setting_json(guild_id):
     else:
         return None
 
+def get_guild_id():
+    try:
+        with open('./json/DiscordSetting.json', 'r') as file:
+            data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    return list(data.keys())
