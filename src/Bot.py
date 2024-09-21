@@ -136,8 +136,8 @@ async def loop():
       old_Msg_id = json_make.load_Twitter_Msg(channel_id,twitter_user_id)
       # 未設定の場合は初期化
       old_Msg_id = [
-          old_Msg_id[0] is None ? 0 : old_Msg_id[0],
-          old_Msg_id[1] is None ? 0 : old_Msg_id[1]
+        old_Msg_id[0] if old_Msg_id[0] is not None else 0,
+        old_Msg_id[1] if old_Msg_id[1] is not None else 0
       ]
       # 同じ場合スキップ
       if(tweet_id == old_Msg_id[0]):
