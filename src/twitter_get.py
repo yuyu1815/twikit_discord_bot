@@ -1,27 +1,32 @@
 from twikit import Client
-import os, asyncio
-from json_make import Twitter_New_Json_edit
+import os, sys
+from json_make import twitter_new_json_edit
 
 
-class Twitter_Client:
+class TwitterClient:
     def __init__(self):
         self.client = Client('en-US')
 
     async def load_client(self):
         if not os.path.isfile("./json/cookie.json"):
             print("Not set json file")
-            os._exit(1)
+            sys.exit()
         if not os.path.isfile("./json/cookie_edit.json"):
-            Twitter_New_Json_edit()
+            twitter_new_json_edit()
         self.client.load_cookies('./json/cookie_edit.json')
 
-    async def Twikit_Msg(self,user_id):
-        tweets = await self.client.get_user_tweets(user_id, 'Tweets',count=2)
-        print(tweets[0].id, tweets[1].id)
-        return tweets[0].id, tweets[1].id
+    async def twikit_msg(self, user_name):
+        try:
+            user = await self.client.get_user_by_screen_name(user_name)
+            tweets = await self.client.get_user_tweets(str(user.id), 'Tweets', count=2)
+            return tweets[0].id, tweets[1].id
+        except:
+            print(f"User '{user_name}' does not exist.")
+            return None, None
 
-    async def Twikit_Id_From_Name(self,user_name):
-        return self.client.get_user_by_screen_name(user_name)
+
+    async def twikit_id_from_name(self, user_name):
+        return await self.client.get_user_by_screen_name(user_name)
 
 
 # インスタンスを作成してからメソッドを呼び出す
