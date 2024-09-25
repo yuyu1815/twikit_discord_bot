@@ -10,7 +10,7 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 Application_ID = os.getenv('Application_ID')
 # いつもの呪文
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 discord_client = discord.Client(intents=intents)
 
 tree = app_commands.CommandTree(discord_client)
@@ -152,7 +152,6 @@ async def check_setting(interaction: discord.Interaction):
 # x.comの置き換え
 @discord_client.event
 async def on_message(message):
-  print(message.content)
   # BOTには反応しないようにする。twitter.comまたはx.comが投稿されたことを確認する。
   if message.author.bot or ('https://twitter.com' not in message.content and 'https://x.com' not in message.content):
     return
@@ -160,11 +159,14 @@ async def on_message(message):
   # fxtwitter.comまたはvxtwitter.comが含まれる場合はそのメッセージを送信しない
   if 'https://fxtwitter.com' in updated_content or 'https://vxtwitter.com' in updated_content:
     return
-
   # 特定の文字列の置換と新しいメッセージの送信
   updated_content = updated_content.replace('https://twitter.com', 'https://fxtwitter.com')
   updated_content = updated_content.replace('https://x.com', 'https://fxtwitter.com')
-  await message.edit(suppress=True)
+  try:
+    await message.edit(suppress=True)
+  except discord.errors.Forbidden:
+    print('権限が足りません')
+    pass
   await message.channel.send(f"[￶]({updated_content})")
 
 @tasks.loop(seconds=1)
@@ -198,6 +200,7 @@ async def loop():
         # ツイート取得失敗
         print('ツイート取得失敗')
         continue
+
       old_msg_id = json_make.load_twitter_msg(channel_id, twitter_user_name)
       # 未設定の場合は初期化
       old_msg_id = [
