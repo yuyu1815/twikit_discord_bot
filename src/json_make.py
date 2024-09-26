@@ -31,7 +31,7 @@ def load_setting_json(guild_id):
         return None
 
 # 以下の設定を保存 ギルドid,ギルドごとのチェック用クールダウン,チャンネル(配列),ツイッターid(配列)
-def edit_setting_json(guild_id, cool_down_time, setting_channels, twitter_user_names):
+def edit_setting_json(guild_id, cool_down_time, setting_channels, twitter_user_names,setting_bool):
     try:
         # guildごとのjsonファイルの読み込み
         with open('./json/DiscordSetting.json', 'r') as file:
@@ -43,6 +43,7 @@ def edit_setting_json(guild_id, cool_down_time, setting_channels, twitter_user_n
     # guild_idが存在する場合は編集、存在しない場合は追加
     data[str(guild_id)] = {
         "cool_down_time": cool_down_time,
+        "setting_bool": setting_bool,
         "setting_channels": setting_channels,
         "twitter_user_names": twitter_user_names
     }
@@ -56,7 +57,8 @@ def json_load_and_settings(guild_id, flag_setting_name, flag_string):
     edit_setting_json(guild_id,
                       flag_string if flag_setting_name == "cool_down_time" else json_data["cool_down_time"],
                       flag_string if flag_setting_name == "setting_channels" else json_data["setting_channels"],
-                      flag_string if flag_setting_name == "twitter_user_names" else json_data["twitter_user_names"]
+                      flag_string if flag_setting_name == "twitter_user_names" else json_data["twitter_user_names"],
+                      flag_string if flag_setting_name == "setting_bool" else json_data["setting_bool"]
                       )
 # ギルドid取得
 def get_guild_id():
@@ -93,3 +95,12 @@ def load_twitter_msg(channel_id, twitter_id):
     except:
         return None,None
 
+def del_twitter_msg(channel_id, twitter_id):
+    try:
+        with open('./json/Twitter_msg.json', 'r') as file:
+            data = json.load(file)
+        del data[str(channel_id)][str(twitter_id)]
+        with open('./json/Twitter_msg.json', 'w') as file:
+            json.dump(data, file, sort_keys=True, indent=4)
+    except:
+        pass

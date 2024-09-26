@@ -24,13 +24,24 @@ class TwitterClient:
             print(f"User '{user_name}' does not exist.")
             return None, None
 
+
     async def twikit_id_from_name(self, user_name):
         return await self.client.get_user_by_screen_name(user_name)
 
+    async def get_retweet(self, target_tweet_id):
+        tweet = await self.client.get_tweet_by_id(str(target_tweet_id))
+        print()
+        if tweet.is_quote_status or tweet.retweeted_tweet.id == target_tweet_id:
+            return False
+        else:
+            return True
 
 # インスタンスを作成してからメソッドを呼び出す
+
+
 """
-client = Twitter_Client()
+client = TwitterClient()
 asyncio.run(client.load_client())
+print(asyncio.run(client.get_retweet("1838858404955316541")))
 asyncio.run(client.Twikit_Msg())
 """

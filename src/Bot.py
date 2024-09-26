@@ -50,8 +50,11 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
   json_data = json_make.load_setting_json(guild_id)
   if json_data is None:
     # まだ設定されていない場合
-    json_make.edit_setting_json(guild_id, 1, [channel_id], [twitter_user_name])
+    json_make.edit_setting_json(guild_id, 1, [channel_id], [twitter_user_name],[True,True])
     json_data = json_make.load_setting_json(guild_id)
+    # 表示する設定にしていない場合
+  elif(json_data["setting_bool"][0] == False):
+    await message_send(interaction, '設定でOFFになっているため追加できませんでした', True)
   else:
     for i in range(len(json_data["setting_channels"])):
       if json_data["setting_channels"][i] == channel_id and json_data["twitter_user_names"][i] == twitter_user_name:
@@ -87,12 +90,13 @@ async def del_command(interaction: discord.Interaction,user_name:str):
       del json_data["setting_channels"][i]
       del json_data["twitter_user_names"][i]
       # json書き込み
+      json_make.del_twitter_msg(channel_id, user_name)
       json_make.json_load_and_settings(guild_id, "setting_channels", json_data["setting_channels"])
       json_make.json_load_and_settings(guild_id, "twitter_user_names", json_data["twitter_user_names"])
       await message_send(interaction, '削除完了',True)
       return
-
-  await message_send(interaction, '削除するものがありません',True)
+  # 登録されていない場合
+  await message_send(interaction, '設定されていないため削除できませんでした',True)
 # クールダウンの設定
 @tree.command(name='check-time', description='twitterをチェックする間隔(分)を設定(小数点以下は使えません)')
 async def cool_down(interaction: discord.Interaction,minutes:int):
@@ -116,7 +120,7 @@ async def check_setting(interaction: discord.Interaction):
   twitter_user_names = json_data["twitter_user_names"]
   cool_down_time = json_data["cool_down_time"]
   # 送信部分
-  embed = discord.Embed(title="設定中チャンネル", description=f"チェックする間隔{cool_down_time}分", color=0x219900)
+  embed = discord.Embed(title="設定中チャンネル", description=f"チェックする間隔{cool_down_time}分\ntweet更新：{json_data['setting_bool'][0]}\nfxtwitterに変換：{json_data['setting_boo'][1]}", color=0x219900)
   channel_string = ""
   twitter_user_names_string = ""
   message_count = 0
@@ -151,7 +155,10 @@ async def check_setting(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 # x.comの置き換え
 @discord_client.event
-async def on_message(message):
+async def on_message(message,interaction: discord.Interaction):
+  json_data = json_make.load_setting_json(interaction.guild_id)
+  if json_data is None and json_data["setting_bool"][0] is False:
+    return
   # BOTには反応しないようにする。twitter.comまたはx.comが投稿されたことを確認する。
   if message.author.bot or ('https://twitter.com' not in message.content and 'https://x.com' not in message.content):
     return
@@ -159,14 +166,11 @@ async def on_message(message):
   # fxtwitter.comまたはvxtwitter.comが含まれる場合はそのメッセージを送信しない
   if 'https://fxtwitter.com' in updated_content or 'https://vxtwitter.com' in updated_content:
     return
+
   # 特定の文字列の置換と新しいメッセージの送信
   updated_content = updated_content.replace('https://twitter.com', 'https://fxtwitter.com')
   updated_content = updated_content.replace('https://x.com', 'https://fxtwitter.com')
-  try:
-    await message.edit(suppress=True)
-  except discord.errors.Forbidden:
-    print('権限が足りません')
-    pass
+  await message.edit(suppress=True)
   await message.channel.send(f"[￶]({updated_content})")
 
 @tasks.loop(seconds=1)
@@ -189,7 +193,7 @@ async def loop():
     if int(json_data["cool_down_time"])*60 >= now_time - old_time:
       # 設定時間に達していない
       continue
-    # 時間リセットs
+    # 時間リセット
     old_time = time.time()
     for channel_id,twitter_user_name in zip(json_data["setting_channels"],json_data["twitter_user_names"]):
       #送信先チャンネル指定
@@ -200,7 +204,6 @@ async def loop():
         # ツイート取得失敗
         print('ツイート取得失敗')
         continue
-
       old_msg_id = json_make.load_twitter_msg(channel_id, twitter_user_name)
       # 未設定の場合は初期化
       old_msg_id = [
@@ -210,7 +213,9 @@ async def loop():
       # 同じ場合スキップ 削除された時の対策用
       if tweet_id == old_msg_id[0] or tweet_id == old_msg_id[1]:
         continue
-
+      # リツイートの場合もスキップ
+      if json_data["setting_bool"][0] and await twitter_client.get_retweet(tweet_id):
+        continue
       # メッセージを更新
       old_msg_id = [tweet_id,next_tweet_id]
       json_make.twitter_msg_edit(channel_id,twitter_user_name,old_msg_id)
@@ -218,6 +223,5 @@ async def loop():
       url = f'https://fxtwitter.com/{twitter_user_name}/status/{tweet_id}'
       print(url)
       await channel.send(url, silent=True)
-
-
+      # リツイートがあった場合はそれも表示
 discord_client.run(TOKEN)
