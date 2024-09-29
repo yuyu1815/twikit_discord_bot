@@ -1,5 +1,7 @@
+import asyncio
+
 from twikit import Client
-import os, sys
+import os, sys,re,requests
 from json_make import twitter_new_json_edit
 
 
@@ -30,11 +32,41 @@ class TwitterClient:
 
     async def get_retweet(self, target_tweet_id):
         tweet = await self.client.get_tweet_by_id(str(target_tweet_id))
-        print()
-        if tweet.is_quote_status or tweet.retweeted_tweet.id == target_tweet_id:
+        try:
+            if tweet.is_quote_status or tweet.retweeted_tweet.id == target_tweet_id:
+                return False
+            else:
+                return True
+        except:
             return False
+    # 画像がある場合URLを返す
+    async def twitter_msg_get_url(self,msg_url):
+        # msg_urlからtweet_idのみ取得
+        tweet_id = ""
+        if "https://twitter.com" in msg_url:
+            tweet_id = re.search(r'twitter\.com/.+/status/(\d+)', msg_url)
+        elif "https://x.com" in msg_url:
+            tweet_id = re.search(r'x\.com/.+/status/(\d+)', msg_url)
+
+        if tweet_id:
+            tweet_id = tweet_id.group(1)
         else:
-            return True
+            return None
+        tweet = await self.client.get_tweet_by_id(str(tweet_id))
+        tweet_msg = tweet.full_text
+        #url以外の文字列削除
+        url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+        urls = re.findall(url_pattern, tweet_msg)
+        # urlsは短縮のため展開
+        urls = [requests.get(url).url for url in urls]
+        for url in urls:
+            if "https://twitter.com" in url or "https://x.com" in url:
+                urls.remove(url)
+        if urls:
+            return urls
+        else:
+            return None
+
 
 # インスタンスを作成してからメソッドを呼び出す
 

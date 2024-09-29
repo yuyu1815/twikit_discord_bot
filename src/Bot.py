@@ -1,10 +1,11 @@
-from time import sleep
+from turtledemo.penrose import start
 
-import discord,os,time
+import discord,os,time,re
 from discord import app_commands
 from dotenv import load_dotenv
-import twitter_get,json_make
+import twitter_get,json_make,scraping.aliexpress
 from discord.ext import tasks, commands
+from urllib.parse import urlparse, urlunparse
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -15,7 +16,7 @@ discord_client = discord.Client(intents=intents)
 
 tree = app_commands.CommandTree(discord_client)
 twitter_client = twitter_get.TwitterClient()
-
+aliexpress = scraping.aliexpress.aliexpress()
 old_time = time.time()
 
 @discord_client.event
@@ -35,10 +36,30 @@ async def on_ready():
 #discordとコンソールに送信
 async def message_send(interaction, msg,ephemeral=False):
   print(msg)
-
   await interaction.response.send_message(msg, ephemeral=ephemeral)
   return
-# 以下コマンド類
+# https://qiita.com/hisuie08/items/5b63924156080694fc81
+async def send_embed_aliexpress(url_pattern):
+  title, img_url, price, price_original, price_off, count, postage, skip_time, choice, star, review = aliexpress.get_data(url_pattern)
+  # 黄色と赤
+  color = 0xffff00 if choice else 0xff0000
+  parsed_url = urlparse(url_pattern)
+  clean_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', ''))
+  count_star = ''
+  for i in range(int(star)):
+    count_star += '★'
+  for i in range(5 - int(star)):
+    count_star += '☆'
+  embed = discord.Embed(title=f"[{title}]({clean_url})", description=f"評価:{count_star} {star} {review}", color=color)
+  if choice:
+    embed.set_thumbnail(file="./png/choice.png")
+  if price:
+    embed.add_field(name='価格', value=f'通常価格:　~~{price_original}~~{price}\n**{price_off}**\n評価: {star} {review}', inline=False)
+  else:
+    embed.add_field(name='価格', value=f'現在価格: {price}', inline=False)
+  embed.add_field(name='配送', value=f'送料: {postage}\n発送日時: {skip_time}', inline=False)
+  embed.set_image(url=img_url)
+#------------------ 以下コマンド類 ------------------
 # channelとtwitter_id設定
 @tree.command(name='set_twitter', description='コマンドを実行したチャンネルでtwitterを登録します')
 async def set_command(interaction: discord.Interaction,twitter_user_name:str):
@@ -67,7 +88,7 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
 
     json_make.json_load_and_settings(guild_id, "setting_channels", json_data["setting_channels"])
     json_make.json_load_and_settings(guild_id, "twitter_user_names", json_data["twitter_user_names"])
-    await interaction.response.send_message('設定完了')
+    await message_send(interaction, '設定完了', True)
 
 # channelとtwitter_id削除
 @tree.command(name='del_twitter', description='コマンドを実行したチャンネルで登録していたものを削除します')
@@ -106,7 +127,34 @@ async def cool_down(interaction: discord.Interaction,minutes:int):
   json_make.json_load_and_settings(interaction.guild_id, "cool_down_time", minutes)
   await message_send(interaction, '設定完了',True)
 
+@tree.command(name='change-setting-twitter-get', description='ツイッターの自動更新の取得設定(True/False)')
+async def change_setting_twitter_get(interaction: discord.Interaction, mode: bool):
+  # ギルドid
+  guild_id = interaction.guild_id
+  # ギルドidから現在の設定を読み込み
+  json_data = json_make.load_setting_json(guild_id)
+  if json_data is None:
+    await message_send(interaction, '設定jsonを読み込むことができませんでした',True)
+    return
+  # 現在の設定を切り替える
+  json_data["setting_bool"][0] = mode
+  # json書き込み
+  json_make.json_load_and_settings(guild_id, "setting_bool", json_data["setting_bool"])
 
+  @tree.command(name='change-setting-url-preview', description='urlを見てる形にしてくれます(True/False)')
+  async def change_setting(interaction: discord.Interaction, mode: bool):
+    # ��ルドid
+    guild_id = interaction.guild_id
+    # ��ルドidから現在の設定を読み込み
+    json_data = json_make.load_setting_json(guild_id)
+    if json_data is None:
+      await message_send(interaction, '設定jsonを読み込むことができませんでした', True)
+      return
+    # 現在の設定を切り替える
+    json_data["setting_bool"][1] = mode
+    # json書き込み
+    json_make.json_load_and_settings(guild_id, "setting_bool", json_data["setting_bool"])
+  await message_send(interaction, '設定完了',True)
 @tree.command(name='check-setting', description='現在の設定しているチャンネルなどを表示')
 async def check_setting(interaction: discord.Interaction):
   # ギルドid
@@ -155,23 +203,37 @@ async def check_setting(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 # x.comの置き換え
 @discord_client.event
-async def on_message(message,interaction: discord.Interaction):
-  json_data = json_make.load_setting_json(interaction.guild_id)
+async def on_message(message):
+  #bot無視
+  if message.author.bot:
+    return
+  print(f"{message.author.name}: {message.content}")
+  json_data = json_make.load_setting_json(message.guild.id)
+
+  replace_url = ['https://x.com', 'https://twitter.com', 'https://www.tiktok.com', 'https://tiktok.com']
+  after_replace_url = [f"https://fxtwitter.com", "https://fxtwitter.com", "https://fxtiktok.com", "https://fxtiktok.com"]
   if json_data is None and json_data["setting_bool"][0] is False:
     return
-  # BOTには反応しないようにする。twitter.comまたはx.comが投稿されたことを確認する。
-  if message.author.bot or ('https://twitter.com' not in message.content and 'https://x.com' not in message.content):
-    return
-  updated_content = message.content
-  # fxtwitter.comまたはvxtwitter.comが含まれる場合はそのメッセージを送信しない
-  if 'https://fxtwitter.com' in updated_content or 'https://vxtwitter.com' in updated_content:
-    return
 
-  # 特定の文字列の置換と新しいメッセージの送信
-  updated_content = updated_content.replace('https://twitter.com', 'https://fxtwitter.com')
-  updated_content = updated_content.replace('https://x.com', 'https://fxtwitter.com')
-  await message.edit(suppress=True)
-  await message.channel.send(f"[￶]({updated_content})")
+  url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+  updated_content = re.findall(url_pattern, message.content)[0]
+  if "aliexpress.com/item/" in url_pattern:
+    await send_embed_aliexpress(updated_content)
+    # アリエクを投稿された場合
+
+  # twitter.comまたはx.comが投稿されたことを確認する。
+  for after,before in zip(after_replace_url,replace_url):
+    if before in updated_content:
+      updated_content = updated_content.replace(before, after)
+      await message.edit(suppress=True)
+      await message.channel.send(f"[￶]({updated_content})")
+      break
+  if 'https://x.com' in updated_content or 'https://twitter.com' in updated_content:
+      other_url = await twitter_client.twitter_msg_get_url(updated_content)
+      if other_url is not None:
+        return
+      for i in other_url:
+          await message.channel.send(f"[￶]({i})")
 
 @tasks.loop(seconds=1)
 async def loop():
@@ -185,7 +247,7 @@ async def loop():
   for guild_id in guild_ids:
     # ギルドidからチャンネル、クールダウン、チャンネル、ツイッターidを取得
     json_data = json_make.load_setting_json(guild_id)
-    if json_data is None:
+    if json_data is None and json_data["setting_bool"][1] is False:
       # 読み込み失敗
       print('読み込み失敗')
       continue
@@ -213,8 +275,8 @@ async def loop():
       # 同じ場合スキップ 削除された時の対策用
       if tweet_id == old_msg_id[0] or tweet_id == old_msg_id[1]:
         continue
-      # リツイートの場合もスキップ
-      if json_data["setting_bool"][0] and await twitter_client.get_retweet(tweet_id):
+      # リツイートの場合スキップ
+      if await twitter_client.get_retweet(tweet_id):
         continue
       # メッセージを更新
       old_msg_id = [tweet_id,next_tweet_id]
@@ -224,4 +286,5 @@ async def loop():
       print(url)
       await channel.send(url, silent=True)
       # リツイートがあった場合はそれも表示
+
 discord_client.run(TOKEN)
