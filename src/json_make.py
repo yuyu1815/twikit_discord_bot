@@ -1,6 +1,7 @@
 import json
 import sys
 # cookieを編集してTwikitを用に変換し保存
+
 def twitter_new_json_edit():
     try:
         with open('./json/cookie.json', 'r') as file:
