@@ -47,27 +47,40 @@ import asyncio
 import time
 
 
-async def fetch_ld_json():
+async def fetch_ld_json(url: str,timeout:int = 0) -> dict:
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
 
         # ページのロード完了を待たずにJavaScriptを実行
-        await page.goto('https://ja.aliexpress.com/item/1005005421916179.html', wait_until='domcontentloaded')
+        await page.goto(url)
 
         # ページ内の`<script type="application/ld+json">`を取得
         content = await page.content()
         soup = BeautifulSoup(content, 'html.parser')
         ld_json_scripts = soup.find_all('script', type='application/ld+json')
-        print(ld_json_scripts)
-        # スクリプトが見つかったら、内容を表示してブラウザを閉じる
-        if ld_json_scripts:
-            for script in ld_json_scripts:
-                print(script.string)
+        #print(ld_json_scripts)
+        dictionary_list = [[],[]]
+        # JSONデータを辞書に変換
+        if ld_json_scripts is None:
+            return
+        for script in ld_json_scripts:
+            try:
+                data_list = json.loads(script.string)
 
+                # リストの各要素を処理
+                for index, data_dict in enumerate(data_list):
+                    print(f"要素 {index + 1}:")
+                    for key in data_dict:
+                        print(f"キー: {key}, 値: {data_dict[key]}")
+                        dictionary_list[index].append(data_dict)
+
+                    print()  # 各要素の間に空行を追加
+            except Exception as e:
+                print(f"エラー: {e}")
+        #print(dictionary_list)
         await browser.close()
-
-
+        return dictionary_list
 if __name__ == "__main__":
     #extract_product_info("https://ja.aliexpress.com/item/1005005421916179.html")
-    asyncio.run(fetch_ld_json())
+    asyncio.run(fetch_ld_json("https://ja.aliexpress.com/item/1005005421916179.html"))
