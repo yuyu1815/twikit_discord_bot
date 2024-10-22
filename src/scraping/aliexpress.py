@@ -13,10 +13,10 @@ async def fetch_ld_json(url: str,timeout:int = 0) -> list[list[Any]] | None:
 
         await page.goto(url)
 
-        # ページ内の`<script type="application/ld+json">`を取得
+        # ページ内の`<script type="application/ld+twitter_json">`を取得
         content = await page.content()
         soup = BeautifulSoup(content, 'html.parser')
-        ld_json_scripts = soup.find_all('script', type='application/ld+json')
+        ld_json_scripts = soup.find_all('script', type='application/ld+twitter_json')
         #print(ld_json_scripts)
         dictionary_list = [[],[]]
         # JSONデータを辞書に変換
@@ -38,4 +38,4 @@ async def fetch_ld_json(url: str,timeout:int = 0) -> list[list[Any]] | None:
                 return None
         await browser.close()
         return dictionary_list
-print(fetch_ld_json(""))
+#print(fetch_ld_json(""))

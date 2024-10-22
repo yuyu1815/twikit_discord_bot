@@ -1,10 +1,9 @@
 import json
 import sys
 # cookieを編集してTwikitを用に変換し保存
-
 def twitter_new_json_edit():
     try:
-        with open('./json/cookie.json', 'r') as file:
+        with open('twitter_json/cookie.json', 'r') as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         sys.exit()
@@ -16,13 +15,13 @@ def twitter_new_json_edit():
         if name and value:
             result[name] = value
 
-    with open('./json/cookie_edit.json', 'w') as file:
+    with open('twitter_json/cookie_edit.json', 'w') as file:
         json.dump(result, file, sort_keys=True, indent=4)
 
 # ギルドidから設定チャンネルを取得
 def load_setting_json(guild_id):
     try:
-        with open('./json/DiscordSetting.json', 'r') as file:
+        with open('twitter_json/DiscordSetting.json', 'r') as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
@@ -35,7 +34,7 @@ def load_setting_json(guild_id):
 def edit_setting_json(guild_id, cool_down_time, setting_channels, twitter_user_names,setting_bool):
     try:
         # guildごとのjsonファイルの読み込み
-        with open('./json/DiscordSetting.json', 'r') as file:
+        with open('twitter_json/DiscordSetting.json', 'r') as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         # ファイルが存在しないか、読み込めない場合は新規作成
@@ -50,7 +49,7 @@ def edit_setting_json(guild_id, cool_down_time, setting_channels, twitter_user_n
     }
 
     # JSONファイルに保存
-    with open('./json/DiscordSetting.json', 'w') as file:
+    with open('twitter_json/DiscordSetting.json', 'w') as file:
         json.dump(data, file, sort_keys=True, indent=4)
 
 def json_load_and_settings(guild_id, flag_setting_name, flag_string):
@@ -64,7 +63,7 @@ def json_load_and_settings(guild_id, flag_setting_name, flag_string):
 # ギルドid取得
 def get_guild_id():
     try:
-        with open('./json/DiscordSetting.json', 'r') as file:
+        with open('twitter_json/DiscordSetting.json', 'r') as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
@@ -72,7 +71,7 @@ def get_guild_id():
 # twitterのメッセージを保存
 def twitter_msg_edit(channel_id, twitter_id, msg):
     try:
-        with open('./json/Twitter_msg.json', 'r') as file:
+        with open('twitter_json/Twitter_msg.json', 'r') as file:
             data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         data = {}
@@ -85,12 +84,12 @@ def twitter_msg_edit(channel_id, twitter_id, msg):
     data[str(channel_id)][str(twitter_id)] = msg
 
     # JSONファイルに保存
-    with open('./json/Twitter_msg.json', 'w') as file:
+    with open('twitter_json/Twitter_msg.json', 'w') as file:
         json.dump(data, file, sort_keys=True, indent=4)
 # twitterのメッセージの取得
 def load_twitter_msg(channel_id, twitter_id):
     try:
-        with open('./json/Twitter_msg.json', 'r') as file:
+        with open('twitter_json/Twitter_msg.json', 'r') as file:
             data = json.load(file)
         return data[str(channel_id)][str(twitter_id)]
     except:
@@ -98,10 +97,10 @@ def load_twitter_msg(channel_id, twitter_id):
 
 def del_twitter_msg(channel_id, twitter_id):
     try:
-        with open('./json/Twitter_msg.json', 'r') as file:
+        with open('twitter_json/Twitter_msg.json', 'r') as file:
             data = json.load(file)
         del data[str(channel_id)][str(twitter_id)]
-        with open('./json/Twitter_msg.json', 'w') as file:
+        with open('twitter_json/Twitter_msg.json', 'w') as file:
             json.dump(data, file, sort_keys=True, indent=4)
     except:
         pass
