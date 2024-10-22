@@ -247,8 +247,10 @@ async def on_message(message):
       if other_url is None:
         return
       for i in other_url:
-          #await message.channel.send(f"[￶]({i})")
-          await message.channel.send(i)
+          if "https://fxtwitter.com" in i:
+            await message.channel.send(f"[￶]({i})")
+          else:
+            await message.channel.send(i)
 
 @tasks.loop(seconds=10)
 async def loop():

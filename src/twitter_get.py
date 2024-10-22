@@ -41,19 +41,20 @@ class TwitterClient:
         except:
             return False
     # 画像がある場合URLを返す
-    async def twitter_msg_get_url(self,msg_url):
+    async def twitter_msg_get_url(self,msg_url,tweet_id_flag = False):
         # msg_urlからtweet_idのみ取得
         tweet_id = None
+        if tweet_id_flag:
+            tweet_id = msg_url
         if "https://twitter.com" in msg_url:
-            tweet_id = re.search(r'twitter\.com/.+/status/(\d+)', msg_url)
+            tweet_id = re.search(r'twitter\.com/.+/status/(\d+)', msg_url).group(1)
         elif "https://x.com" in msg_url:
-            tweet_id = re.search(r'x\.com/.+/status/(\d+)', msg_url)
+            tweet_id = re.search(r'x\.com/.+/status/(\d+)', msg_url).group(1)
 
-        if tweet_id is not None:
-            tweet_id = tweet_id.group(1)
-        else:
+        if tweet_id is None:
             return None
         tweet = await self.client.get_tweet_by_id(str(tweet_id))
+
         tweet_msg = tweet.full_text
         #url以外の文字列削除
         url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
@@ -63,6 +64,20 @@ class TwitterClient:
         for url in urls:
             if "https://twitter.com" in url or "https://x.com" in url:
                 urls.remove(url)
+        try:
+            _ = tweet.quote.id
+            flag_tweet = True
+        except:
+            flag_tweet = False
+            pass
+        if flag_tweet:
+            retweet_urls = await self.twitter_msg_get_url(tweet.quote.id ,True)
+            #print(f"https://fxtwitter.com/{tweet.user.screen_name}/status/{tweet.quote.id}")
+            urls.append(f"https://fxtwitter.com/{tweet.user.screen_name}/status/{tweet.quote.id}")
+            if retweet_urls:
+                urls.extend(retweet_urls)
+
+
         if urls:
             return urls
         else:
@@ -80,9 +95,10 @@ class TwitterClient:
 
 
 
-client = TwitterClient()
-asyncio.run(client.load_client())
-print(asyncio.run(client.twitter_msg_get_url("https://x.com/lamrongol/status/1847566641955295344")))
+#client = TwitterClient()
+#asyncio.run(client.load_client())
+#print(asyncio.run(client.twitter_msg_get_url("https://x.com/nyuks_deity/status/1826105014798135422")))
+#print(asyncio.run(client.twitter_msg_get_url("1825311111887106509",True)))
 #print(asyncio.run(client.get_retweet("1838858404955316541")))
 #asyncio.run(client.twikit_msg())
 
