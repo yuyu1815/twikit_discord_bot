@@ -76,7 +76,7 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
     await message_send(interaction, languages["setting_flag_msg"], True)
     return
   elif not await twitter_client.user_exist(twitter_user_name):
-    await message_send(interaction, languages["unknown_user"], True)
+    await message_send(interaction, languages["unknown_user_msg"], True)
     return
   elif json_data is None:
     # まだ設定されていない場合
@@ -87,7 +87,7 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
   for i in range(len(json_data["setting_channels"])):
     if json_data["setting_channels"][i] == channel_id and json_data["twitter_user_names"][i] == twitter_user_name:
       # 登録済み処理
-      await message_send(interaction, languages["duplicated_user"],True)
+      await message_send(interaction, languages["duplicated_user_msg"],True)
       return
       # 登録完了
   json_data["setting_channels"].append(channel_id)
@@ -95,7 +95,7 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
 
   json_make.json_load_and_settings(guild_id, "setting_channels", json_data["setting_channels"])
   json_make.json_load_and_settings(guild_id, "twitter_user_names", json_data["twitter_user_names"])
-  await message_send(interaction, languages["setting_completed"], True)
+  await message_send(interaction, languages["setting_completed_msg"], True)
 
 # channelとtwitter_id削除
 @tree.command(name='del_twitter', description=languages["command_del_twitter"])

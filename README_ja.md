@@ -1,6 +1,7 @@
 # RSS-free tweet acquisition discord bot
 ![banner](./img/Twitter.jpg)
-英語 [日本語](./README_ja.md)
+[英語](./README.md) 日本語
+
 これまでRSSを使ったツイートを取得する方法しかありませんでしたが
 Twitterのアカウントを使うことによりそれを克服しました
 ## 目次
@@ -8,6 +9,7 @@ Twitterのアカウントを使うことによりそれを克服しました
 - [進行中](#現在進行中)
 - [インストール](#インストール方法)
 - [設定](#設定)
+- [コマンド](#コマンドできること)
 ## 特徴
 
 - お金がかからないツイートの自動取得
@@ -53,3 +55,17 @@ py Bot.py
 Discordのセットアップ
 以下の設定で招待をしてください
 ![discord](./img/Setup_2.png)
+## コマンド&できること
+```
+
+```
+
+![command](img/set_command.png)
+- そのチャンネルの名前の人の自動投稿を削除
+![command](img/del_command.png)
+- 自動投稿
+![command](img/auto_say.png)
+- 現在の設定の表示
+- ![command](img/check_command.png)
+- fxtwitterに変換機能の On OFF
+![command](img/Command_1.png)
