@@ -92,7 +92,7 @@ class TwitterClient:
 # インスタンスを作成してからメソッドを呼び出す
 #client = TwitterClient()
 #asyncio.run(client.load_client())
-#print(asyncio.run(client.twitter_msg_get_url("https://x.com/lamrongol/status/1847566641955295344")))
+#print(asyncio.run(client.twitter_msg_get_url("https://x.com/nyuks_deity/status/1826105014798135422")))
 #print(asyncio.run(client.get_retweet("1838858404955316541")))
 #asyncio.run(client.twikit_msg())
 
