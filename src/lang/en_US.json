@@ -1,0 +1,21 @@
+{
+  "command_set_twitter": "Register Twitter in the channel where the command was executed.",
+  "setting_flag_msg": "Could not add because it is set to OFF in the settings.",
+  "unknown_user_mag": "The username does not exist or is a locked account.",
+  "duplicated_user_msg": "Could not add because it is already set.",
+  "setting_completed_msg": "Settings completed.",
+  "command_del_twitter": "Delete the registered Twitter in the channel where the command was executed.",
+  "loading_failed_msg": "Could not load the settings JSON.",
+  "no_user_registration_msg": "Could not delete because it is not set.",
+  "command_check_time": "Set the interval (in minutes) to check Twitter (decimals are not allowed).",
+  "command_change_setting_twitter_get": "Set the auto-update retrieval for Twitter (True/False).",
+  "command_check_settings": "Display the currently set channels and other settings.",
+
+  "embed_setting": "Settings",
+  "embed_check_time": "Check Interval",
+  "embed_minutes": "Minutes",
+  "embed_new_tweet": "Tweet Update",
+  "embed_change_fxtwitter": "Convert to fxtwitter",
+  "embed_setting_channel": "Setting Channel",
+  "embed_setting_user": "Setting Twitter"
+}

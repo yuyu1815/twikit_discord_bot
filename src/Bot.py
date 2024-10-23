@@ -10,13 +10,11 @@ from dotenv import load_dotenv
 import twitter_get,json_make,scraping.aliexpress
 
 from urllib.parse import urlparse, urlunparse
-import json
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
 Application_ID = os.getenv('Application_ID')
-Languages = os.getenv('Languages')
 # 言語設定
-#languages = json.load(f"./lang/{Languages}.json")
+languages = json_make.get_lang_json(os.getenv('Languages'))
 # いつもの呪文
 intents = discord.Intents.all()
 discord_client = discord.Client(intents=intents)
@@ -66,7 +64,7 @@ async def message_send(interaction, msg,ephemeral=False):
   embed.set_image(url=img_url)"""
 #------------------ 以下コマンド類 ------------------
 # channelとtwitter_id設定
-@tree.command(name='set_twitter', description='コマンドを実行したチャンネルでtwitterを登録します')
+@tree.command(name='set_twitter', description=languages["command_set_twitter"])
 async def set_command(interaction: discord.Interaction,twitter_user_name:str):
   #チャンネルid取得
   channel_id = interaction.channel_id
@@ -75,10 +73,10 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
   #2重登録防ぎ
   json_data = json_make.load_setting_json(guild_id)
   if (json_data["setting_bool"][0] == False):
-    await message_send(interaction, '設定でOFFになっているため追加できませんでした', True)
+    await message_send(interaction, languages["setting_flag_msg"], True)
     return
   elif not await twitter_client.user_exist(twitter_user_name):
-    await message_send(interaction, 'User名が存在しないものか鍵のかかったアカウントです', True)
+    await message_send(interaction, languages["unknown_user"], True)
     return
   elif json_data is None:
     # まだ設定されていない場合
@@ -89,7 +87,7 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
   for i in range(len(json_data["setting_channels"])):
     if json_data["setting_channels"][i] == channel_id and json_data["twitter_user_names"][i] == twitter_user_name:
       # 登録済み処理
-      await message_send(interaction, 'すでに設定しているため追加できませんでした',True)
+      await message_send(interaction, languages["duplicated_user"],True)
       return
       # 登録完了
   json_data["setting_channels"].append(channel_id)
@@ -97,10 +95,10 @@ async def set_command(interaction: discord.Interaction,twitter_user_name:str):
 
   json_make.json_load_and_settings(guild_id, "setting_channels", json_data["setting_channels"])
   json_make.json_load_and_settings(guild_id, "twitter_user_names", json_data["twitter_user_names"])
-  await message_send(interaction, '設定完了', True)
+  await message_send(interaction, languages["setting_completed"], True)
 
 # channelとtwitter_id削除
-@tree.command(name='del_twitter', description='コマンドを実行したチャンネルで登録していたものを削除します')
+@tree.command(name='del_twitter', description=languages["command_del_twitter"])
 async def del_command(interaction: discord.Interaction,user_name:str):
   #チャンネルid取得
   channel_id = interaction.channel_id
@@ -110,7 +108,7 @@ async def del_command(interaction: discord.Interaction,user_name:str):
 
   if json_data is None:
     # 読み込み失敗
-    await message_send(interaction, '設定jsonを読み込むことができませんでした',True)
+    await message_send(interaction, languages["loading_failed_msg"],True)
     return
 
   for i in range(len(json_data["setting_channels"])):
@@ -123,27 +121,26 @@ async def del_command(interaction: discord.Interaction,user_name:str):
       json_make.del_twitter_msg(channel_id, user_name)
       json_make.json_load_and_settings(guild_id, "setting_channels", json_data["setting_channels"])
       json_make.json_load_and_settings(guild_id, "twitter_user_names", json_data["twitter_user_names"])
-      await message_send(interaction, '削除完了',True)
+      await message_send(interaction, languages["setting_completed_msg"],True)
       return
   # 登録されていない場合
-  await message_send(interaction, '設定されていないため削除できませんでした',True)
+  await message_send(interaction, languages["no_user_registration_msg"],True)
 # クールダウンの設定
-@tree.command(name='check-time', description='twitterをチェックする間隔(分)を設定(小数点以下は使えません)')
+@tree.command(name='check-time', description=languages["command_check_time"])
 async def cool_down(interaction: discord.Interaction,minutes:int):
   # 1分未満は1分に設定
-  if minutes <= 1:
-    minutes = 1
+  minutes = max(1,minutes)
   json_make.json_load_and_settings(interaction.guild_id, "cool_down_time", minutes)
-  await message_send(interaction, '設定完了',True)
+  await message_send(interaction, languages["setting_completed_msg"],True)
 
-@tree.command(name='change-setting-twitter-get', description='ツイッターの自動更新の取得設定(True/False)')
+@tree.command(name='change-setting-twitter-get', description=languages["command_change_setting_twitter_get"])
 async def change_setting_twitter_get(interaction: discord.Interaction, mode: bool):
   # ギルドid
   guild_id = interaction.guild_id
   # ギルドidから現在の設定を読み込み
   json_data = json_make.load_setting_json(guild_id)
   if json_data is None:
-    await message_send(interaction, '設定jsonを読み込むことができませんでした',True)
+    await message_send(interaction, languages["loading_failed_msg"],True)
     return
   # 現在の設定を切り替える
   json_data["setting_bool"][0] = mode
@@ -157,27 +154,27 @@ async def change_setting_twitter_get(interaction: discord.Interaction, mode: boo
     # ギルドidから現在の設定を読み込み
     json_data = json_make.load_setting_json(guild_id)
     if json_data is None:
-      await message_send(interaction, '設定jsonを読み込むことができませんでした', True)
+      await message_send(interaction, languages["loading_failed_msg"], True)
       return
     # 現在の設定を切り替える
     json_data["setting_bool"][1] = mode
     # json書き込み
     json_make.json_load_and_settings(guild_id, "setting_bool", json_data["setting_bool"])
-  await message_send(interaction, '設定完了',True)
-@tree.command(name='check-setting', description='現在の設定しているチャンネルなどを表示')
+  await message_send(interaction, languages["setting_completed_msg"],True)
+@tree.command(name='check-settings', description=languages["command_check_settings"])
 async def check_setting(interaction: discord.Interaction):
   # ギルドid
   guild_id = interaction.guild_id
   # ギルドidからチャンネル、クールダウン、チャンネル、ツイッターidを取得
   json_data = json_make.load_setting_json(guild_id)
   if json_data is None:
-    await message_send(interaction, '設定jsonを読み込むことができませんでした',True)
+    await message_send(interaction, languages["loading_failed_msg"],True)
     return
   setting_channels = json_data["setting_channels"]
   twitter_user_names = json_data["twitter_user_names"]
   cool_down_time = json_data["cool_down_time"]
   # 送信部分
-  embed = discord.Embed(title="設定中チャンネル", description=f"チェックする間隔{cool_down_time}分\ntweet更新：{json_data['setting_bool'][0]}\nfxtwitterに変換：{json_data['setting_bool'][1]}", color=0x219900)
+  embed = discord.Embed(title=languages["embed_setting"], description=f"{languages['embed_check_time']} : {cool_down_time}{languages['embed_minutes']}\n{languages['embed_new_tweet']} : {json_data['setting_bool'][0]}\n{languages['embed_change_fxtwitter']}：{json_data['setting_bool'][1]}", color=0x219900)
   channel_string = ""
   twitter_user_names_string = ""
   message_count = 0
@@ -187,14 +184,14 @@ async def check_setting(interaction: discord.Interaction):
     # 4文字(チャンネル名) + 18文字(ツイッター名)
     # 1024文字に達したら送信
     if message_count >= 1024:
-      embed.add_field(name="設定チャンネル", value=channel_string, inline=True)
-      embed.add_field(name="設定ツイッター", value=twitter_user_names_string, inline=True)
+      embed.add_field(name=languages["embed_setting_channel"], value=channel_string, inline=True)
+      embed.add_field(name=languages["embed_setting_user"], value=twitter_user_names_string, inline=True)
       if message_flag:
         await interaction.followup.send(embed=embed)
       else:
         await interaction.response.send_message(embed=embed)
       # 初期化
-      embed = discord.Embed(title="設定中チャンネル", color=0x219900)
+      embed = discord.Embed(title=languages["embed_setting_channel"], color=0x219900)
       message_count = 0
       channel_string = ""
       twitter_user_names_string = ""
@@ -204,8 +201,8 @@ async def check_setting(interaction: discord.Interaction):
     twitter_user_names_string += f"[{twitter_user_name}](https://x.com/{twitter_user_name})\n"
 
 
-  embed.add_field(name="設定チャンネル", value=channel_string, inline=True)
-  embed.add_field(name="設定ツイッター", value=twitter_user_names_string, inline=True)
+  embed.add_field(name=languages["embed_setting_channel"], value=channel_string, inline=True)
+  embed.add_field(name=languages["embed_setting_user"], value=twitter_user_names_string, inline=True)
   if message_flag:
     await interaction.followup.send(embed=embed)
   else:
@@ -264,7 +261,7 @@ async def loop():
     json_data = json_make.load_setting_json(guild_id)
     if json_data is None and json_data["setting_bool"][1] is False:
       # 読み込み失敗
-      print('読み込み失敗')
+      print('Loading failed')
       continue
     #cool_down_time は分単位
     if int(json_data["cool_down_time"])*60 >= now_time - old_time:
@@ -279,7 +276,7 @@ async def loop():
       tweet_id,next_tweet_id = await twitter_client.twikit_msg(twitter_user_name)
       if tweet_id is None:
         # ツイート取得失敗
-        print('ツイート取得失敗')
+        print('Failed to get tweets')
         continue
       old_msg_id = json_make.load_twitter_msg(channel_id, twitter_user_name)
       # 未設定の場合は初期化

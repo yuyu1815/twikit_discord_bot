@@ -1,5 +1,13 @@
 import json
 import sys
+def get_lang_json(lang):
+    try:
+        with open(f'lang/{lang}.json', 'r',encoding='utf-8') as file:
+            data = json.load(file)
+    except IOError:
+        print(f'Error: Could not find language file {lang}.json')
+        sys.exit()
+    return data
 # cookieを編集してTwikitを用に変換し保存
 def twitter_new_json_edit():
     try:
