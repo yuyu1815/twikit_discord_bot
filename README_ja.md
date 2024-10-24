@@ -46,7 +46,8 @@ TOKEN="Discord_token"
 #support ja_JP en_US zh_CN
 Languages="en_US"
 ```
-
+名前の変更
+sample.env -> .env
 開始方法
 Linux or Mac
 ```bash
@@ -61,6 +62,7 @@ py Bot.py
 Discordのセットアップ
 以下の設定で招待をしてください
 ![discord](./img/Setup_2.png)
+![discord](./img/Setup_3.png)
 ## コマンド&できること
 ```
 /set_twitter twitter_user_name:
