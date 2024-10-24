@@ -163,7 +163,7 @@ cython_debug/
 #.idea/
 src/twitter_json/cookie.json
 src/twitter_json/cookie_edit.json
-src/twitter_json/DiscordSettings.json
+src/twitter_json/DiscordSetting.json
 src/twitter_json/Twitter_msg.json
 
 
