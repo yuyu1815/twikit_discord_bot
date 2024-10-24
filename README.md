@@ -90,4 +90,4 @@ Please invite with the following settings:
 ```
 /change-setting-twitter-get mode:
 ```
-![command](img/Command_1.png)
+![command](img/command_1.png)
