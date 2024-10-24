@@ -47,6 +47,8 @@ TOKEN="Discord_token"
 #support ja_JP en_US zh_CN
 Languages="en_US"
 ```
+rename
+sample.env -> .env
 How to Start
 Linux or Mac
 ```bash
@@ -61,6 +63,7 @@ py Bot.py
 Setting Up Discord
 Please invite with the following settings:
 ![discord](./img/Setup_2.png)
+![discord](./img/Setup_3.png)
 
 ## Commands & Capabilities
 - Add automatic posts from the user with the channel's name
