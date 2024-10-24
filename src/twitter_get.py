@@ -1,5 +1,3 @@
-import asyncio
-from traceback import print_tb
 
 from twikit import Client
 import os, sys,re,requests

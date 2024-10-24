@@ -161,4 +161,9 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-src/twitter_json
+src/twitter_json/cookie.json
+src/twitter_json/cookie_edit.json
+src/twitter_json/DiscordSettings.json
+src/twitter_json/Twitter_msg.json
+
+

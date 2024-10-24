@@ -33,6 +33,11 @@ Windows
  start.bat
 ```
 ### 設定
+1. この[拡張機能](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm)をインストールしてください
+2. 以下の画像のようにしてcookieをコピーしてください
+![image](./img/cookie.png)
+3. コピーしたcookieを crc/twitter_json内にcookie.jsonと言う名前にして保存してください
+
 [sample.env](./src/sample.env)
 
 以下の2つを設定してください
@@ -41,6 +46,7 @@ TOKEN="Discord_token"
 #support ja_JP en_US zh_CN
 Languages="en_US"
 ```
+
 開始方法
 Linux or Mac
 ```bash
@@ -57,15 +63,29 @@ Discordのセットアップ
 ![discord](./img/Setup_2.png)
 ## コマンド&できること
 ```
-
+/set_twitter twitter_user_name:
 ```
+- そのチャンネルの名前の人の自動投稿を追加
 
 ![command](img/set_command.png)
 - そのチャンネルの名前の人の自動投稿を削除
+```
+/del_twitter twitter_user_name:
+```
 ![command](img/del_command.png)
+
 - 自動投稿
+
 ![command](img/auto_say.png)
+
 - 現在の設定の表示
-- ![command](img/check_command.png)
+```
+/check-settings 
+```
+![command](img/check_command.png)
+
 - fxtwitterに変換機能の On OFF
+```
+/change-setting-twitter-get mode:
+```
 ![command](img/Command_1.png)

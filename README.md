@@ -1,45 +1,53 @@
-# RSS-free tweet acquisition discord bot
+
+# RSS-Free Tweet Acquisition Discord Bot
 ![banner](./img/Twitter.jpg)
-英語 [日本語](./README_ja.md)
-これまでRSSを使ったツイートを取得する方法しかありませんでしたが
-Twitterのアカウントを使うことによりそれを克服しました
-## 目次
-- [特徴](#特徴)
-- [進行中](#現在進行中)
-- [インストール](#インストール方法)
-- [設定](#設定)
-## 特徴
+English [日本語](README_ja.md)
 
-- お金がかからないツイートの自動取得
-- 複数のサーバー、チャンネルに対応
--  自動fxtwitter,fxtiktokに変換
+Until now, there was only a method to acquire tweets using RSS, but we have overcome this by using a Twitter account.
+## Table of Contents
+- [Features](#features)
+- [In Progress](#in-progress)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Commands](#commands)
 
-## 現在進行中
+## Features
 
- - [ ] アリエクに対応
- - [ ] fxtwitterをフォークし独自に改造
+- Automatic tweet acquisition without cost
+- Support for multiple servers and channels
+- Automatic conversion to fxtwitter and fxtiktok
 
-## インストール方法
+## In Progress
 
-プロジェクトのインストール手順を記載します。
+ - [ ] Support for AliExpress
+ - [ ] Fork fxtwitter and customize it independently
+
+## Installation
+
+Here are the installation steps for the project.
 Linux or Mac
 ```bash
- start.sh
+ python3 -m pip install -r requirements.txt
 ```
 Windows
 ```bash
- start.bat
+ pip install -r requirements.txt
 ```
-### 設定
+### Configuration
+1. Please install this [extension](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm).
+2. Copy the cookie as shown in the image below.
+![image](./img/cookie.png)
+3. Save the copied cookie as cookie.json in the crc/twitter_json directory.
+
 [sample.env](./src/sample.env)
 
-以下の2つを設定してください
+Please configure the following two items:
 ```dotenv
 TOKEN="Discord_token"
 #support ja_JP en_US zh_CN
 Languages="en_US"
 ```
-開始方法
+How to Start
 Linux or Mac
 ```bash
 cd src 
@@ -50,6 +58,36 @@ Windows
 cd src
 py Bot.py
 ```
-Discordのセットアップ
-以下の設定で招待をしてください
+Setting Up Discord
+Please invite with the following settings:
 ![discord](./img/Setup_2.png)
+
+## Commands & Capabilities
+- Add automatic posts from the user with the channel's name
+
+```
+/set_twitter twitter_user_name:
+```
+
+![command](img/set_command.png)
+- Remove automatic posts from the user with the channel's name
+```
+/del_twitter twitter_user_name:
+```
+![command](img/del_command.png)
+
+- Automatic posting
+
+![command](img/auto_say.png)
+
+- Display current settings
+```
+/check-settings 
+```
+![command](img/check_command.png)
+
+- Toggle fxtwitter conversion feature On/Off
+```
+/change-setting-twitter-get mode:
+```
+![command](img/Command_1.png)

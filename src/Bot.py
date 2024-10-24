@@ -1,15 +1,12 @@
 
-from turtledemo.penrose import start
 import discord,os,time,re
 #discord
 from discord import app_commands
-from discord.ext import tasks, commands
+from discord.ext import tasks
 
 from dotenv import load_dotenv
 #local
-import twitter_get,json_make,scraping.aliexpress
-
-from urllib.parse import urlparse, urlunparse
+import twitter_get,json_make
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
 Application_ID = os.getenv('Application_ID')
