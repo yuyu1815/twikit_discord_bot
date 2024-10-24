@@ -39,26 +39,6 @@ async def message_send(interaction, msg,ephemeral=False):
   await interaction.response.send_message(msg, ephemeral=ephemeral)
   return
 # https://qiita.com/hisuie08/items/5b63924156080694fc81
-"""async def send_embed_aliexpress(url_pattern):
-  title, img_url, price, price_original, price_off, count, postage, skip_time, choice, star, review = aliexpress.get_data(url_pattern)
-  # 黄色と赤
-  color = 0xffff00 if choice else 0xff0000
-  parsed_url = urlparse(url_pattern)
-  clean_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', '', ''))
-  count_star = ''
-  for i in range(int(star)):
-    count_star += '★'
-  for i in range(5 - int(star)):
-    count_star += '☆'
-  embed = discord.Embed(title=f"[{title}]({clean_url})", description=f"評価:{count_star} {star} {review}", color=color)
-  if choice:
-    embed.set_thumbnail(file="./png/choice.png")
-  if price:
-    embed.add_field(name='価格', value=f'通常価格:　~~{price_original}~~{price}\n**{price_off}**\n評価: {star} {review}', inline=False)
-  else:
-    embed.add_field(name='価格', value=f'現在価格: {price}', inline=False)
-  embed.add_field(name='配送', value=f'送料: {postage}\n発送日時: {skip_time}', inline=False)
-  embed.set_image(url=img_url)"""
 #------------------ 以下コマンド類 ------------------
 # channelとtwitter_id設定
 @tree.command(name='set_twitter', description=languages["command_set_twitter"])
