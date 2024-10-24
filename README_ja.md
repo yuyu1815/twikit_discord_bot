@@ -1,6 +1,6 @@
 # RSS-free tweet acquisition discord bot
 ![banner](./img/Twitter.jpg)
-[英語](./README.md) 日本語
+[英語](./README.md) [中文](./README_zh.md) 日本語
 
 これまでRSSを使ったツイートを取得する方法しかありませんでしたが
 Twitterのアカウントを使うことによりそれを克服しました
