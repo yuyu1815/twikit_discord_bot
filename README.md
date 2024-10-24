@@ -1,7 +1,7 @@
 
 # RSS-Free Tweet Acquisition Discord Bot
 ![banner](./img/Twitter.jpg)
-English [日本語](README_ja.md)
+English [中文](README_zh.md) [日本語](README_ja.md) 
 
 Until now, there was only a method to acquire tweets using RSS, but we have overcome this by using a Twitter account.
 ## Table of Contents
