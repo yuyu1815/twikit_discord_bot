@@ -1,0 +1,21 @@
+{
+  "command_set_twitter": "コマンドを実行したチャンネルでtwitterを登録します",
+  "setting_flag_msg": "設定でOFFになっているため追加できませんでした",
+  "unknown_user_mag": "User名が存在しないものか鍵のかかったアカウントです",
+  "duplicated_user_msg": "すでに設定しているため追加できませんでした",
+  "setting_completed_msg": "設定完了",
+  "command_del_twitter": "コマンドを実行したチャンネルで登録していたものを削除します",
+  "loading_failed_msg": "設定jsonを読み込むことができませんでした",
+  "no_user_registration_msg": "設定されていないため削除できませんでした",
+  "command_check_time": "twitterをチェックする間隔(分)を設定(小数点以下は使えません)",
+  "command_change_setting_twitter_get": "ツイッターの自動更新の取得設定(True/False)",
+  "command_check_settings": "現在の設定しているチャンネルなどを表示",
+
+  "embed_setting": "設定",
+  "embed_check_time": "チェック間隔",
+  "embed_minutes": "分",
+  "embed_new_tweet": "tweet更新",
+  "embed_change_fxtwitter": "fxtwitterに変換",
+  "embed_setting_channel": "設定チャンネル",
+  "embed_setting_user": "設定ツイッター"
+}

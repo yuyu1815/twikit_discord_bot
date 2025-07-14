@@ -1,0 +1,21 @@
+{
+  "command_set_twitter": "在执行命令的频道中注册Twitter。",
+  "setting_flag_msg": "由于设置为关闭，无法添加。",
+  "unknown_user_mag": "用户名不存在或是锁定的账户。",
+  "duplicated_user_msg": "由于已设置，无法添加。",
+  "setting_completed_msg": "设置完成。",
+  "command_del_twitter": "删除在执行命令的频道中注册的Twitter。",
+  "loading_failed_msg": "无法加载设置JSON。",
+  "no_user_registration_msg": "由于未设置，无法删除。",
+  "command_check_time": "设置检查Twitter的间隔（以分钟为单位，不允许小数）。",
+  "command_change_setting_twitter_get": "设置Twitter的自动更新获取（真/假）。",
+  "command_check_settings": "显示当前设置的频道及其他设置。",
+
+  "embed_setting": "设置",
+  "embed_check_time": "检查间隔",
+  "embed_minutes": "分钟",
+  "embed_new_tweet": "推文更新",
+  "embed_change_fxtwitter": "转换为fxtwitter",
+  "embed_setting_channel": "设置频道",
+  "embed_setting_user": "设置Twitter"
+}
