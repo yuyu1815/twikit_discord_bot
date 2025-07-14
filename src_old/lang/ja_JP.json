@@ -1,7 +1,7 @@
 {
   "command_set_twitter": "コマンドを実行したチャンネルでtwitterを登録します",
   "setting_flag_msg": "設定でOFFになっているため追加できませんでした",
-  "unknown_user_msg": "User名が存在しないものか鍵のかかったアカウントです",
+  "unknown_user_mag": "User名が存在しないものか鍵のかかったアカウントです",
   "duplicated_user_msg": "すでに設定しているため追加できませんでした",
   "setting_completed_msg": "設定完了",
   "command_del_twitter": "コマンドを実行したチャンネルで登録していたものを削除します",

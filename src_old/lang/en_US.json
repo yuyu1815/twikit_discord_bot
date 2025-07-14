@@ -1,7 +1,7 @@
 {
   "command_set_twitter": "Register Twitter in the channel where the command was executed.",
   "setting_flag_msg": "Could not add because it is set to OFF in the settings.",
-  "unknown_user_msg": "The username does not exist or is a locked account.",
+  "unknown_user_mag": "The username does not exist or is a locked account.",
   "duplicated_user_msg": "Could not add because it is already set.",
   "setting_completed_msg": "Settings completed.",
   "command_del_twitter": "Delete the registered Twitter in the channel where the command was executed.",

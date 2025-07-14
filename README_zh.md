@@ -1,6 +1,6 @@
 # 无需RSS的推文获取Discord机器人
 ![banner](./img/Twitter.jpg)
-[English](./README.md) 中文 [日本語](./README_ja.md)
+[English](README.md) 中文 [日本語](README_ja.md)
 
 以前只能通过RSS获取推文，
 现在通过使用Twitter账户克服了这个限制

@@ -1,7 +1,7 @@
 {
   "command_set_twitter": "在执行命令的频道中注册Twitter。",
   "setting_flag_msg": "由于设置为关闭，无法添加。",
-  "unknown_user_msg": "用户名不存在或是锁定的账户。",
+  "unknown_user_mag": "用户名不存在或是锁定的账户。",
   "duplicated_user_msg": "由于已设置，无法添加。",
   "setting_completed_msg": "设置完成。",
   "command_del_twitter": "删除在执行命令的频道中注册的Twitter。",
