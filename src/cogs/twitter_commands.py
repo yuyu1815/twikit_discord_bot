@@ -31,6 +31,7 @@ class TwitterCommandsCog(commands.Cog):
         await interaction.response.send_message(msg, ephemeral=ephemeral)
 
     @app_commands.command(name='set_twitter')
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def set_command(self, interaction: discord.Interaction, twitter_user_name: str):
         """
         Set up a Twitter feed for a channel.
@@ -77,6 +78,7 @@ class TwitterCommandsCog(commands.Cog):
         await self.message_send(interaction, self.lang["setting_completed_msg"], True)
 
     @app_commands.command(name='del_twitter')
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def del_command(self, interaction: discord.Interaction, user_name: str):
         """
         Remove a Twitter feed from a channel.
@@ -99,6 +101,7 @@ class TwitterCommandsCog(commands.Cog):
             await self.message_send(interaction, self.lang["no_user_registration_msg"], True)
 
     @app_commands.command(name='check-time')
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def cool_down(self, interaction: discord.Interaction, minutes: int):
         """
         Set the cool down time for Twitter updates.
@@ -116,6 +119,7 @@ class TwitterCommandsCog(commands.Cog):
         await self.message_send(interaction, self.lang["setting_completed_msg"], True)
 
     @app_commands.command(name='change-setting-twitter-get')
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def change_setting_twitter_get(self, interaction: discord.Interaction, mode: bool):
         """
         Enable or disable Twitter updates.
@@ -133,6 +137,7 @@ class TwitterCommandsCog(commands.Cog):
         await self.message_send(interaction, self.lang["setting_completed_msg"], True)
 
     @app_commands.command(name='change-setting-url-preview')
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def change_setting_url_preview(self, interaction: discord.Interaction, mode: bool):
         """
         Enable or disable URL previews.

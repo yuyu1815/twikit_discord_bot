@@ -15,7 +15,9 @@ Until now, there was only a method to acquire tweets using RSS, but we have over
 
 - Automatic tweet acquisition without cost
 - Support for multiple servers and channels
-- Automatic conversion to fxtwitter and fxtiktok
+- Automatic conversion to fxtwitter and fxtiktok URLs
+- Database-based configuration storage
+- Multi-language support (English, Japanese, Chinese)
 
 ## In Progress
 
@@ -25,72 +27,120 @@ Until now, there was only a method to acquire tweets using RSS, but we have over
 ## Installation
 
 Here are the installation steps for the project.
+
+### Prerequisites
+- Python 3.8 or higher
+- Discord Bot Token
+
+### Install Dependencies
 Linux or Mac
 ```bash
- python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 Windows
 ```bash
- pip install -r requirements.txt
+pip install -r requirements.txt
 ```
-### Configuration
-1. Please install this [extension](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm).
+
+## Configuration
+
+### 1. Twitter Cookie Setup
+1. Install this [Chrome extension](https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm).
 2. Copy the cookie as shown in the image below.
 ![image](./img/cookie.png)
-3. Save the copied cookie as cookie.json in the crc/twitter_json directory.
+3. Save the copied cookie as `cookie.json` in the `data/` directory.
 
-[sample.env](./src/sample.env)
-
-Please configure the following two items:
+### 2. Environment Variables
+Create a `.env` file in the project root with the following configuration:
 ```dotenv
-TOKEN="Discord_token"
-#support ja_JP en_US zh_CN
+TOKEN="Your_Discord_Bot_Token"
+# Supported languages: ja_JP, en_US, zh_CN
 Languages="en_US"
 ```
-rename
-sample.env -> .env
-How to Start
-Linux or Mac
-```bash
-cd src 
-python3 Bot.py
-```
-Windows
-```bash
-cd src
-py Bot.py
-```
-Setting Up Discord
-Please invite with the following settings:
+
+### 3. Discord Bot Setup
+Please invite your bot with the following permissions:
 ![discord](./img/Setup_2.png)
 ![discord](./img/Setup_3.png)
 
+### 4. How to Start
+Linux or Mac
+```bash
+python3 main.py
+```
+Windows
+```bash
+python main.py
+```
+
 ## Commands & Capabilities
-- Add automatic posts from the user with the channel's name
 
+### Twitter Feed Management
+- **Add Twitter feed to channel**
 ```
-/set_twitter twitter_user_name:
+/set_twitter twitter_user_name: <username>
 ```
-
 ![command](img/set_command.png)
-- Remove automatic posts from the user with the channel's name
+
+- **Remove Twitter feed from channel**
 ```
-/del_twitter twitter_user_name:
+/del_twitter user_name: <username>
 ```
 ![command](img/del_command.png)
 
-- Automatic posting
-
-![command](img/auto_say.png)
-
-- Display current settings
+### Settings Management
+- **Set cooldown time for Twitter updates**
 ```
-/check-settings 
+/check-time minutes: <number>
+```
+![command](img/time_command.png)
+
+- **Toggle Twitter updates on/off**
+```
+/change-setting-twitter-get mode: <true/false>
+```
+
+- **Toggle URL preview conversion on/off**
+```
+/change-setting-url-preview mode: <true/false>
+```
+![command](img/command_1.png)
+
+- **Display current settings**
+```
+/check-settings
 ```
 ![command](img/check_command.png)
 
-- Toggle fxtwitter conversion feature On/Off
+### Automatic Features
+- **Automatic Twitter posting**
+![command](img/auto_say.png)
+
+- **Automatic URL conversion** - Converts Twitter/X and TikTok URLs to fxtwitter/fxtiktok for better embeds
+
+## Project Structure
 ```
-/change-setting-twitter-get mode:
+twikit_discord_bot/
+├── data/                     # Application data files
+│   ├── cookie.json          # Twitter authentication cookie
+│   ├── cookie_edit.json     # Backup cookie file
+│   ├── DiscordSetting.json  # Discord server settings
+│   └── Twitter_msg.json     # Twitter message cache
+├── src/
+│   ├── cogs/                # Discord command modules
+│   │   ├── twitter_commands.py  # Twitter-related slash commands
+│   │   └── url_fixer.py         # URL replacement functionality
+│   ├── core/                # Core bot functionality
+│   │   ├── bot.py           # Main bot class and event handlers
+│   │   ├── database.py      # Database operations
+│   │   └── twitter_client.py    # Twitter API client
+│   ├── config/              # Configuration management
+│   │   └── settings.py      # Settings and file I/O operations
+│   └── lang/                # Language files
+│       ├── en_US.json       # English translations
+│       ├── ja_JP.json       # Japanese translations
+│       └── zh_CN.json       # Chinese translations
+├── main.py                  # Application entry point
+├── requirements.txt         # Python dependencies
+└── .env                     # Environment variables
 ```
-![command](img/command_1.png)
