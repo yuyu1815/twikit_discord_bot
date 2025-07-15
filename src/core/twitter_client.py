@@ -9,15 +9,17 @@ class TwitterClient:
     This class replaces the functionality in the old twitter_get.py file.
     """
 
-    def __init__(self, cookie_path=None):
+    def __init__(self, settings=None, cookie_path=None):
         """
         Initialize the Twitter client.
 
         Args:
+            settings (Settings, optional): Settings object for language support
             cookie_path (str, optional): Path to the cookie file
         """
         self.client = Client('en-US')
         self.cookie_path = cookie_path or Path(__file__).parent.parent.parent / 'data' / 'cookie_edit.json'
+        self.settings = settings
 
     async def load_client(self):
         """
@@ -28,7 +30,10 @@ class TwitterClient:
         """
         cookie_file = Path(self.cookie_path)
         if not cookie_file.exists():
-            raise FileNotFoundError(f"Cookie file not found: {self.cookie_path}")
+            if self.settings:
+                raise FileNotFoundError(self.settings.lang_data["twitter_cookie_not_found"].format(self.cookie_path))
+            else:
+                raise FileNotFoundError(f"Cookie file not found: {self.cookie_path}")
 
         self.client.load_cookies(str(cookie_file))
 
@@ -47,13 +52,22 @@ class TwitterClient:
             tweets = await self.client.get_user_tweets(str(user.id), 'Tweets', count=2)
             return tweets[0].id, tweets[1].id
         except IndexError:
-            print(f"Not enough tweets found for user '{user_name}'")
+            if self.settings:
+                print(self.settings.lang_data["twitter_not_enough_tweets"].format(user_name))
+            else:
+                print(f"Not enough tweets found for user '{user_name}'")
             return None, None
         except AttributeError as e:
-            print(f"Invalid response format for user '{user_name}': {str(e)}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_invalid_response"].format(user_name, str(e)))
+            else:
+                print(f"Invalid response format for user '{user_name}': {str(e)}")
             return None, None
         except Exception as e:
-            print(f"Error getting tweets for user '{user_name}': {str(e)}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_error_getting_tweets"].format(user_name, str(e)))
+            else:
+                print(f"Error getting tweets for user '{user_name}': {str(e)}")
             return None, None
 
     async def twikit_id_from_name(self, user_name):
@@ -91,7 +105,10 @@ class TwitterClient:
             # This might happen if the tweet doesn't have a retweeted_tweet attribute
             return False
         except Exception as e:
-            print(f"Error checking if tweet {target_tweet_id} is a retweet: {str(e)}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_error_checking_retweet"].format(target_tweet_id, str(e)))
+            else:
+                print(f"Error checking if tweet {target_tweet_id} is a retweet: {str(e)}")
             return False
 
     async def twitter_msg_get_url(self, msg_url, tweet_id_flag=False, depth=0):
@@ -108,7 +125,10 @@ class TwitterClient:
         """
         # Limit recursion depth to prevent performance issues
         if depth > 3:
-            print(f"Reached maximum recursion depth for tweet URL: {msg_url}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_max_recursion"].format(msg_url))
+            else:
+                print(f"Reached maximum recursion depth for tweet URL: {msg_url}")
             return None
 
         # Extract tweet ID from URL
@@ -119,13 +139,19 @@ class TwitterClient:
             try:
                 tweet_id = re.search(r'twitter\.com/.+/status/(\d+)', msg_url).group(1)
             except (AttributeError, IndexError):
-                print(f"Invalid Twitter URL format: {msg_url}")
+                if self.settings:
+                    print(self.settings.lang_data["twitter_invalid_twitter_url"].format(msg_url))
+                else:
+                    print(f"Invalid Twitter URL format: {msg_url}")
                 return None
         elif "https://x.com" in msg_url:
             try:
                 tweet_id = re.search(r'x\.com/.+/status/(\d+)', msg_url).group(1)
             except (AttributeError, IndexError):
-                print(f"Invalid X URL format: {msg_url}")
+                if self.settings:
+                    print(self.settings.lang_data["twitter_invalid_x_url"].format(msg_url))
+                else:
+                    print(f"Invalid X URL format: {msg_url}")
                 return None
 
         if tweet_id is None:
@@ -147,7 +173,10 @@ class TwitterClient:
                         async with session.get(url, allow_redirects=True) as response:
                             expanded_urls.append(str(response.url))
                     except Exception as e:
-                        print(f"Error expanding URL {url}: {str(e)}")
+                        if self.settings:
+                            print(self.settings.lang_data["twitter_error_expanding_url"].format(url, str(e)))
+                        else:
+                            print(f"Error expanding URL {url}: {str(e)}")
                         expanded_urls.append(url)  # Use the original URL if expansion fails
 
             # Filter out Twitter URLs
@@ -172,10 +201,16 @@ class TwitterClient:
             return filtered_urls if filtered_urls else None
 
         except AttributeError as e:
-            print(f"Invalid tweet data for tweet {tweet_id}: {str(e)}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_invalid_tweet_data"].format(tweet_id, str(e)))
+            else:
+                print(f"Invalid tweet data for tweet {tweet_id}: {str(e)}")
             return None
         except Exception as e:
-            print(f"Error getting URLs from tweet {tweet_id}: {str(e)}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_error_getting_urls"].format(tweet_id, str(e)))
+            else:
+                print(f"Error getting URLs from tweet {tweet_id}: {str(e)}")
             return None
 
     async def user_exist(self, user_name):
@@ -193,5 +228,8 @@ class TwitterClient:
             return True
         except Exception as e:
             # This is an expected error when the user doesn't exist
-            print(f"User '{user_name}' does not exist: {str(e)}")
+            if self.settings:
+                print(self.settings.lang_data["twitter_user_not_exist"].format(user_name, str(e)))
+            else:
+                print(f"User '{user_name}' does not exist: {str(e)}")
             return False

@@ -25,16 +25,18 @@ class MyBot(commands.Bot):
         """
         # Set up intents
         intents = discord.Intents.all()
-        super().__init__(command_prefix='!', intents=intents)
 
         # Load environment variables
         self.token = os.getenv('TOKEN')
-        self.application_id = os.getenv('Application_ID')
+        application_id = os.getenv('Application_ID')
+
+        # Pass application_id to the parent class constructor
+        super().__init__(command_prefix='!', intents=intents, application_id=application_id)
 
         # Initialize settings, database, and Twitter client
         self.settings = Settings(language)
         self.db = Database()
-        self.twitter_client = TwitterClient()
+        self.twitter_client = TwitterClient(settings=self.settings)
 
         # Flag to track if migration has been performed
         self.migration_done = False
@@ -44,7 +46,7 @@ class MyBot(commands.Bot):
         Set up the bot when it's starting.
         This method is called automatically by discord.py.
         """
-        print('Setting up bot...')
+        print(self.settings.lang_data["bot_setting_up"])
 
         # Load all cogs from the cogs directory
         await self.load_cogs()
@@ -64,20 +66,31 @@ class MyBot(commands.Bot):
         This is a one-time operation that happens at bot startup.
         After successful migration, the JSON files are renamed to prevent them from being read again.
         """
+        data_dir = Path(self.settings.data_dir)
+        discord_settings_file = data_dir / 'DiscordSetting.json'
+        twitter_msg_file = data_dir / 'Twitter_msg.json'
+
+        # If no JSON files exist, mark migration as complete and skip
+        if not discord_settings_file.exists() and not twitter_msg_file.exists():
+            self.db.set_migration_completed()
+            self.migration_done = True
+            # print(self.settings.lang_data["bot_migration_not_needed"])  # Optional: Add a new lang key for this
+            return
+
         # Check if migration has already been completed
         if self.db.is_migration_completed():
             self.migration_done = True
-            print("Database migration has already been completed.")
+            print(self.settings.lang_data["bot_migration_completed"])
             return
 
-        print("Starting migration from JSON to database...")
+        print(self.settings.lang_data["bot_migration_starting"])
 
         # Perform the migration
         success = self.db.migrate_from_json(self.settings)
 
         if success:
             self.migration_done = True
-            print("Migration completed successfully.")
+            print(self.settings.lang_data["bot_migration_success"])
 
             # Rename JSON files to prevent them from being read again
             try:
@@ -87,17 +100,17 @@ class MyBot(commands.Bot):
 
                 if discord_settings_file.exists():
                     discord_settings_file.rename(data_dir / 'DiscordSetting.json.migrated')
-                    print(f"Renamed {discord_settings_file} to {discord_settings_file}.migrated")
+                    print(self.settings.lang_data["bot_renamed_file"].format(discord_settings_file, f"{discord_settings_file}.migrated"))
 
                 if twitter_msg_file.exists():
                     twitter_msg_file.rename(data_dir / 'Twitter_msg.json.migrated')
-                    print(f"Renamed {twitter_msg_file} to {twitter_msg_file}.migrated")
+                    print(self.settings.lang_data["bot_renamed_file"].format(twitter_msg_file, f"{twitter_msg_file}.migrated"))
             except Exception as e:
-                print(f"Warning: Failed to rename JSON files after migration: {e}")
-                print("This won't affect functionality, but the bot may try to read from these files again.")
+                print(self.settings.lang_data["bot_rename_failed"].format(e))
+                print(self.settings.lang_data["bot_rename_failed_continue"])
         else:
-            print("Migration failed. The bot will continue to use JSON files for now.")
-            print("Please check the logs for errors and try again later.")
+            print(self.settings.lang_data["bot_migration_failed"])
+            print(self.settings.lang_data["bot_migration_failed_check"])
 
     async def load_cogs(self):
         """
@@ -119,18 +132,18 @@ class MyBot(commands.Bot):
                 for name, obj in inspect.getmembers(module):
                     if inspect.isclass(obj) and issubclass(obj, commands.Cog) and obj != commands.Cog:
                         await self.add_cog(obj(self))
-                        print(f"Loaded cog: {name}")
+                        print(self.settings.lang_data["bot_loaded_cog"].format(name))
             except Exception as e:
-                print(f"Failed to load cog {module_path}: {e}")
+                print(self.settings.lang_data["bot_failed_load_cog"].format(module_path, e))
 
     async def on_ready(self):
         """
         Event handler for when the bot is ready.
         """
-        print('Login OK')
+        print(self.settings.lang_data["bot_login_ok"])
         if self.application_id:
-            print(f"Setting URL: https://discord.com/developers/applications/{self.application_id}/installation")
-            print(f'Invite URL: https://discord.com/oauth2/authorize?client_id={self.application_id}')
+            print(self.settings.lang_data["bot_setting_url"].format(self.application_id))
+            print(self.settings.lang_data["bot_invite_url"].format(self.application_id))
 
     @tasks.loop(seconds=10)
     async def check_twitter_updates(self):
@@ -163,7 +176,7 @@ class MyBot(commands.Bot):
             # If migration is not complete and no settings in database, try JSON
             if guild_settings is None and not self.migration_done:
                 # This should not happen if migration was successful, but just in case
-                print(f"Warning: Guild {guild_id} not found in database. Migration may not have been complete.")
+                print(self.settings.lang_data["bot_guild_not_found"].format(guild_id))
                 continue
 
             # Skip if Twitter updates are disabled
@@ -210,7 +223,7 @@ class MyBot(commands.Bot):
         tweet_id, next_tweet_id = await self.twitter_client.twikit_msg(twitter_user_name)
         if tweet_id is None:
             # Failed to get tweets
-            print(f'Failed to get tweets for {twitter_user_name}')
+            print(self.settings.lang_data["bot_failed_tweets"].format(twitter_user_name))
             return
 
         # Get the previously seen tweet IDs from database
@@ -249,7 +262,7 @@ class MyBot(commands.Bot):
         Start the bot with the token from environment variables.
         """
         if not self.token:
-            raise ValueError("No token provided. Set the TOKEN environment variable.")
+            raise ValueError(self.settings.lang_data["bot_no_token"])
 
         await self.start(self.token)
 
