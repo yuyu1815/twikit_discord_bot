@@ -165,6 +165,10 @@ class TwitterClient:
             tweet = await self.client.get_tweet_by_id(str(target_tweet_id))
             # A tweet is considered a retweet if it's not a quote status and its retweeted_tweet ID is different from its own ID.
             # ツイートが引用ステータスではなく、そのretweeted_tweetのIDが自身のIDと異なる場合、リツイートと見なされます。
+            # A tweet is considered a retweet if it's not a quote status and its retweeted_tweet ID is different from its own ID.
+            # If it's a quote tweet (is_quote_status is True) or if the retweeted_tweet ID is the same as the target_tweet_id (meaning it's the original tweet being checked), it's not a "pure" retweet.
+            # ツイートが引用ステータスではなく、そのretweeted_tweetのIDが自身のIDと異なる場合、リツイートと見なされます。
+            # 引用ツイートである場合（is_quote_statusがTrue）、またはretweeted_tweetのIDがtarget_tweet_idと同じ場合（チェックされているのが元のツイートであることを意味する）、それは「純粋な」リツイートではありません。
             if tweet.is_quote_status or (hasattr(tweet, 'retweeted_tweet') and tweet.retweeted_tweet.id == target_tweet_id):
                 return False
             else:
@@ -184,141 +188,6 @@ class TwitterClient:
                 print(f"Error checking if tweet {target_tweet_id} is a retweet: {str(e)}")
             return False
 
-    async def twitter_msg_get_url(self, msg_url, tweet_id_flag=False, depth=0):
-        """
-        Extracts and expands URLs from a given tweet URL or ID.
-        This method handles both direct tweet URLs and tweet IDs, recursively fetching URLs from quote tweets.
-
-        Args:
-            msg_url (str): The tweet URL (e.g., "https://twitter.com/user/status/123") or tweet ID.
-            tweet_id_flag (bool, optional): If True, `msg_url` is treated directly as a tweet ID. Defaults to False.
-            depth (int, optional): Current recursion depth to prevent infinite loops in quote tweet chains. Defaults to 0.
-
-        Returns:
-            list: A list of expanded and filtered URLs found in the tweet and its quoted tweets.
-                  Returns None if the tweet ID cannot be extracted or an error occurs.
-
-        指定されたツイートのURLまたはIDからURLを抽出し、展開します。
-        このメソッドは、直接のツイートURLとツイートIDの両方を処理し、引用ツイートから再帰的にURLを取得します。
-
-        Args:
-            msg_url (str): ツイートのURL（例: "https://twitter.com/user/status/123"）またはツイートID。
-            tweet_id_flag (bool, optional): Trueの場合、`msg_url`は直接ツイートIDとして扱われます。デフォルトはFalse。
-            depth (int, optional): 引用ツイートチェーンでの無限ループを防ぐための現在の再帰深度。デフォルトは0。
-
-        Returns:
-            list: ツイートおよびその引用ツイート内で見つかった、展開されフィルタリングされたURLのリスト。
-                  ツイートIDを抽出できない場合やエラーが発生した場合はNoneを返します。
-        """
-        # Limit recursion depth to prevent performance issues and infinite loops.
-        # パフォーマンスの問題と無限ループを防ぐために再帰深度を制限します。
-        if depth > 3:
-            if self.settings:
-                print(self.settings.lang_data["twitter_max_recursion"].format(msg_url))
-            else:
-                print(f"Reached maximum recursion depth for tweet URL: {msg_url}")
-            return None
-
-        tweet_id = None
-        if tweet_id_flag:
-            tweet_id = msg_url
-        elif "https://twitter.com" in msg_url:
-            # Extract tweet ID from standard Twitter URL.
-            # 標準のTwitter URLからツイートIDを抽出します。
-            try:
-                tweet_id = re.search(r'twitter\.com/.+/status/(\d+)', msg_url).group(1)
-            except (AttributeError, IndexError):
-                if self.settings:
-                    print(self.settings.lang_data["twitter_invalid_twitter_url"].format(msg_url))
-                else:
-                    print(f"Invalid Twitter URL format: {msg_url}")
-                return None
-        elif "https://x.com" in msg_url:
-            # Extract tweet ID from X.com URL.
-            # X.comのURLからツイートIDを抽出します。
-            try:
-                tweet_id = re.search(r'x\.com/.+/status/(\d+)', msg_url).group(1)
-            except (AttributeError, IndexError):
-                if self.settings:
-                    print(self.settings.lang_data["twitter_invalid_x_url"].format(msg_url))
-                else:
-                    print(f"Invalid X URL format: {msg_url}")
-                return None
-
-        if tweet_id is None:
-            # If no tweet ID could be extracted, return None.
-            # ツイートIDを抽出できなかった場合、Noneを返します。
-            return None
-
-        try:
-            tweet = await self.client.get_tweet_by_id(str(tweet_id))
-
-            tweet_msg = tweet.full_text
-            # Regex pattern to find URLs in the tweet text.
-            # ツイートテキスト内のURLを見つけるための正規表現パターン。
-            url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-            urls = re.findall(url_pattern, tweet_msg)
-
-            expanded_urls = []
-            async with aiohttp.ClientSession() as session:
-                for url in urls:
-                    try:
-                        # Expand shortened URLs by following redirects.
-                        # リダイレクトをたどって短縮URLを展開します。
-                        async with session.get(url, allow_redirects=True) as response:
-                            expanded_urls.append(str(response.url))
-                    except Exception as e:
-                        # If URL expansion fails, use the original URL and log the error.
-                        # URLの展開に失敗した場合、元のURLを使用し、エラーをログに記録します。
-                        if self.settings:
-                            print(self.settings.lang_data["twitter_error_expanding_url"].format(url, str(e)))
-                        else:
-                            print(f"Error expanding URL {url}: {str(e)}")
-                        expanded_urls.append(url)  # Use the original URL if expansion fails
-
-            # Filter out Twitter/X.com URLs as they are handled separately or not needed.
-            # Twitter/X.comのURLは別途処理されるか、不要なためフィルタリングします。
-            filtered_urls = [url for url in expanded_urls if "https://twitter.com" not in url and "https://x.com" not in url]
-
-            has_quote = False
-            try:
-                # Check if the tweet is a quote tweet.
-                # ツイートが引用ツイートであるかを確認します。
-                _ = tweet.quote.id
-                has_quote = True
-            except AttributeError:
-                # Not a quote tweet.
-                # 引用ツイートではない。
-                pass
-
-            if has_quote:
-                # Recursively get URLs from the quoted tweet.
-                # 引用ツイートから再帰的にURLを取得します。
-                retweet_urls = await self.twitter_msg_get_url(tweet.quote.id, True, depth + 1)
-                # Add the fxtwitter.com URL for the quoted tweet.
-                # 引用ツイートのfxtwitter.comのURLを追加します。
-                filtered_urls.append(f"https://fxtwitter.com/{tweet.user.screen_name}/status/{tweet.quote.id}")
-                if retweet_urls:
-                    filtered_urls.extend(retweet_urls)
-
-            return filtered_urls if filtered_urls else None
-
-        except AttributeError as e:
-            # Handle cases where tweet data is invalid or missing expected attributes.
-            # ツイートデータが無効であるか、期待される属性が欠落している場合の処理。
-            if self.settings:
-                print(self.settings.lang_data["twitter_invalid_tweet_data"].format(tweet_id, str(e)))
-            else:
-                print(f"Invalid tweet data for tweet {tweet_id}: {str(e)}")
-            return None
-        except Exception as e:
-            # Catch any other unexpected errors during URL extraction.
-            # URL抽出中のその他の予期せぬエラーを捕捉します。
-            if self.settings:
-                print(self.settings.lang_data["twitter_error_getting_urls"].format(tweet_id, str(e)))
-            else:
-                print(f"Error getting URLs from tweet {tweet_id}: {str(e)}")
-            return None
 
     async def user_exist(self, user_name):
         """

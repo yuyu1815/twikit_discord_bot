@@ -43,6 +43,12 @@ class Settings:
         # 言語ファイルのディレクトリパスを定義します。
         self.lang_dir = self.project_root / 'src' / 'lang'
 
+        # RSS feed settings
+        # RSSフィードの設定
+        self.rss_feed_output_dir = self.data_dir / 'rss_feeds'
+        self.rss_feed_cooldown_minutes = 5
+        self.rss_feed_max_tweets = 20
+
         # Load language data from the specified language file.
         # 指定された言語ファイルから言語データをロードします。
         self.lang_data = self.get_lang_json(language)
@@ -75,6 +81,7 @@ class Settings:
             with open(self.lang_dir / f'{lang}.json', 'r', encoding='utf-8') as file:
                 data = json.load(file)
         except IOError:
+            # Since we can't access language data yet, we have to use a direct string here
             print(f'Error: Could not find language file {lang}.json')
             sys.exit() # Exit the application if a critical language file is missing.
         return data
@@ -94,7 +101,7 @@ class Settings:
             with open(self.data_dir / 'cookie.json', 'r') as file:
                 data = json.load(file)
         except (FileNotFoundError, json.JSONDecodeError):
-            print("Error: Could not find or parse cookie.json")
+            print(self.lang_data.get("settings_cookie_file_error", "Error: Could not find or parse cookie.json"))
             sys.exit() # Exit if the cookie file is critical and cannot be processed.
 
         result = {}
