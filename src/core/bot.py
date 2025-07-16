@@ -7,6 +7,7 @@ import importlib
 import inspect
 
 from src.core.twitter_client import TwitterClient
+from src.core.twitter_client_manager import TwitterClientManager
 from src.config.settings import Settings
 from src.core.database import Database
 
@@ -53,6 +54,7 @@ class MyBot(commands.Bot):
         self.settings = Settings(language)
         self.db = Database()
         self.twitter_client = TwitterClient(settings=self.settings)
+        self.twitter_client_manager = TwitterClientManager(settings=self.settings)
 
         # Flag to track if the JSON to database migration has been performed.
         # JSONからデータベースへの移行が実行されたかどうかを追跡するフラグ。
@@ -78,13 +80,16 @@ class MyBot(commands.Bot):
         # クッキーのロードを含むTwitterクライアントを初期化します。
         await self.twitter_client.load_client()
 
+        # Initialize the Twitter client manager, which handles both guest and authenticated clients.
+        # ゲストと認証済みの両方のクライアントを処理するTwitterクライアントマネージャーを初期化します。
+        await self.twitter_client_manager.initialize()
+
         # Perform data migration from old JSON files to the new database structure if necessary.
         # 必要に応じて、古いJSONファイルから新しいデータベース構造へのデータ移行を実行します。
         await self.migrate_data_if_needed()
 
-        # Start the background task for checking Twitter updates.
-        # Twitterの更新をチェックするためのバックグラウンドタスクを開始します。
-        self.check_twitter_updates.start()
+        # RSS functionality is now used instead of periodic tweet checking
+        # 定期的なツイートチェックの代わりにRSS機能が使用されるようになりました
 
     async def migrate_data_if_needed(self):
         """
@@ -194,161 +199,14 @@ class MyBot(commands.Bot):
             print(self.settings.lang_data["bot_setting_url"].format(self.application_id))
             print(self.settings.lang_data["bot_invite_url"].format(self.application_id))
 
-    @tasks.loop(seconds=10)
-    async def check_twitter_updates(self):
-        """
-        Background task that periodically checks for new Twitter updates.
-        It iterates through configured guilds and their Twitter feeds,
-        fetching and posting new tweets to Discord channels based on cool-down settings.
+    # The periodic tweet checking functionality has been removed and replaced with RSS functionality.
+    # 定期的なツイートチェック機能は削除され、RSS機能に置き換えられました。
 
-        定期的に新しいTwitterの更新をチェックするバックグラウンドタスクです。
-        設定されたギルドとそのTwitterフィードを繰り返し処理し、
-        クールダウン設定に基づいて新しいツイートをDiscordチャンネルに取得して投稿します。
-        """
-        # Get current time for cool-down calculations.
-        # クールダウン計算のための現在時刻を取得します。
-        now_time = time.time()
+    # The _process_twitter_feed method has been removed as it was only used by the check_twitter_updates task.
+    # _process_twitter_feedメソッドはcheck_twitter_updatesタスクでのみ使用されていたため、削除されました。
 
-        # Get all guild IDs from the database.
-        # データベースからすべてのギルドIDを取得します。
-        guild_ids = self.db.get_all_guild_ids()
-        if not guild_ids:
-            # If migration is complete but no guilds in database, nothing to do.
-            # 移行が完了しているがデータベースにギルドがない場合、何もしません。
-            if self.migration_done:
-                return
-
-            # If migration is not complete, try to get guild IDs from JSON (legacy data).
-            # 移行が完了していない場合、JSONからギルドIDを取得しようとします（レガシーデータ）。
-            guild_ids = self.settings.get_all_guild_ids()
-            if guild_ids is None:
-                return
-
-        for guild_id in guild_ids:
-            # Get guild settings from the database.
-            # データベースからギルド設定を取得します。
-            guild_settings = self.db.get_guild_settings(guild_id)
-
-            # If migration is complete but no settings for this guild, skip it.
-            # 移行が完了しているがこのギルドの設定がない場合、スキップします。
-            if guild_settings is None and self.migration_done:
-                continue
-
-            # If migration is not complete and no settings in database, this indicates an issue or a new guild.
-            # 移行が完了しておらず、データベースに設定がない場合、これは問題または新しいギルドを示します。
-            if guild_settings is None and not self.migration_done:
-                # This should not happen if migration was successful, but just in case.
-                # 移行が成功していればこれは起こらないはずですが、念のため。
-                print(self.settings.lang_data["bot_guild_not_found"].format(guild_id))
-                continue
-
-            # Skip if Twitter updates are disabled for this guild.
-            # このギルドのTwitter更新が無効になっている場合はスキップします。
-            if not guild_settings['twitter_updates_enabled']:
-                continue
-
-            # Get the last checked time for this guild from its settings.
-            # このギルドの最終チェック時刻を設定から取得します。
-            last_checked_time = guild_settings['last_checked_time']
-
-            # Check if enough time has passed since the last check based on the cool-down setting.
-            # クールダウン設定に基づいて、前回のチェックから十分な時間が経過したかを確認します。
-            if guild_settings['cool_down_minutes'] * 60 >= now_time - last_checked_time:
-                # Not time yet, continue to the next guild.
-                # まだ時間ではないため、次のギルドに進みます。
-                continue
-
-            # Update the last checked time for this guild in the database.
-            # このギルドの最終チェック時刻をデータベースで更新します。
-            self.db.update_guild_settings(guild_id, last_checked_time=now_time)
-
-            # Get all Twitter feeds configured for this guild.
-            # このギルドに設定されているすべてのTwitterフィードを取得します。
-            feeds = self.db.get_twitter_feeds(guild_id)
-
-            # If no feeds are configured for this guild, skip it.
-            # このギルドにフィードが設定されていない場合、スキップします。
-            if not feeds:
-                continue
-
-            # Process each Twitter feed for the current guild.
-            # 現在のギルドの各Twitterフィードを処理します。
-            for feed in feeds:
-                await self._process_twitter_feed(guild_id, feed['channel_id'], feed['twitter_user_name'])
-
-    async def _process_twitter_feed(self, guild_id, channel_id, twitter_user_name):
-        """
-        Process a single Twitter feed: fetch new tweets and post them to the Discord channel.
-
-        Args:
-            guild_id (int): The ID of the Discord guild.
-            channel_id (int): The ID of the Discord channel where the tweet should be posted.
-            twitter_user_name (str): The Twitter username to check for new tweets.
-
-        単一のTwitterフィードを処理します：新しいツイートを取得し、Discordチャンネルに投稿します。
-
-        Args:
-            guild_id (int): DiscordギルドのID。
-            channel_id (int): ツイートを投稿するDiscordチャンネルのID。
-            twitter_user_name (str): 新しいツイートをチェックするTwitterユーザー名。
-        """
-        # Get the Discord channel object.
-        # Discordチャンネルオブジェクトを取得します。
-        channel = self.get_channel(channel_id)
-        if not channel:
-            # If the channel is not found (e.g., deleted), skip processing this feed.
-            # チャンネルが見つからない場合（例: 削除された場合）、このフィードの処理をスキップします。
-            return
-
-        # Get the latest two tweet IDs from the Twitter API for the given user.
-        # 指定されたユーザーのTwitter APIから最新の2つのツイートIDを取得します。
-        tweet_id, next_tweet_id = await self.twitter_client.twikit_msg(twitter_user_name)
-        if tweet_id is None:
-            # If failed to get tweets, print an error and return.
-            # ツイートの取得に失敗した場合、エラーを出力して戻ります。
-            print(self.settings.lang_data["bot_failed_tweets"].format(twitter_user_name))
-            return
-
-        # Get the previously stored tweet IDs from the database for comparison.
-        # 比較のために、データベースから以前に保存されたツイートIDを取得します。
-        old_tweet_id, old_next_tweet_id = self.db.get_tweet_history(channel_id, twitter_user_name)
-
-        # If no history exists in the database, initialize with zeros.
-        # データベースに履歴が存在しない場合、ゼロで初期化します。
-        if old_tweet_id is None:
-            old_tweet_id = 0
-            old_next_tweet_id = 0
-
-        # Skip if the latest tweet has already been seen (either as the last or second last tweet).
-        # 最新のツイートが既に確認済みの場合（最新または2番目に新しいツイートとして）、スキップします。
-        if tweet_id == old_tweet_id or tweet_id == old_next_tweet_id:
-            return
-
-        # Skip if the latest tweet is a retweet (as per application logic).
-        # 最新のツイートがリツイートの場合（アプリケーションロジックに従って）スキップします。
-        if await self.twitter_client.get_retweet(tweet_id):
-            return
-
-        # Update the stored tweet IDs in the database with the new latest tweets.
-        # データベースに保存されているツイートIDを新しい最新のツイートで更新します。
-        self.db.update_tweet_history(channel_id, twitter_user_name, tweet_id, next_tweet_id)
-
-        # Construct the fxtwitter.com URL for the new tweet and send it to the Discord channel.
-        # 新しいツイートのfxtwitter.comのURLを構築し、Discordチャンネルに送信します。
-        url = f'https://fxtwitter.com/{twitter_user_name}/status/{tweet_id}'
-        print(url)
-        await channel.send(url, silent=True)
-
-    @check_twitter_updates.before_loop
-    async def before_check_twitter_updates(self):
-        """
-        Wait for the bot to be ready before starting the `check_twitter_updates` task.
-        This ensures that all necessary bot components are initialized before the loop begins.
-
-        `check_twitter_updates`タスクを開始する前に、ボットが準備完了になるのを待ちます。
-        これにより、ループが開始される前に必要なすべてのボットコンポーネントが初期化されていることが保証されます。
-        """
-        await self.wait_until_ready()
+    # The before_check_twitter_updates method has been removed as it was only used by the check_twitter_updates task.
+    # before_check_twitter_updatesメソッドはcheck_twitter_updatesタスクでのみ使用されていたため、削除されました。
 
     async def start_bot(self):
         """

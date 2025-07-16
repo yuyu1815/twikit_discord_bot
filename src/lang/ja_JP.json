@@ -10,6 +10,10 @@
   "command_check_time": "twitterをチェックする間隔(分)を設定(小数点以下は使えません)",
   "command_change_setting_twitter_get": "ツイッターの自動更新の取得設定(True/False)",
   "command_check_settings": "現在の設定しているチャンネルなどを表示",
+  "command_test_tweet": "Twitter/X URLの展開をテストします",
+  "test_tweet_invalid_url": "有効なTwitter/X URL（https://twitter.com/...またはhttps://x.com/...）を入力してください",
+  "test_tweet_title": "ツイートURL展開テスト結果",
+  "test_tweet_urls_found": "ツイート内で見つかったURL",
 
   "embed_setting": "設定",
   "embed_check_time": "チェック間隔",
@@ -36,6 +40,7 @@
   "bot_guild_not_found": "警告：ギルド{0}がデータベースに見つかりません。移行が完了していない可能性があります。",
   "bot_failed_tweets": "{0}のツイートの取得に失敗しました",
   "bot_no_token": "トークンが提供されていません。TOKEN環境変数を設定してください。",
+  "bot_url_log": "URL：{0}",
 
   "twitter_cookie_not_found": "クッキーファイルが見つかりません：{0}",
   "twitter_not_enough_tweets": "ユーザー「{0}」の十分なツイートが見つかりませんでした",
@@ -48,5 +53,31 @@
   "twitter_error_expanding_url": "URL {0}の展開中にエラーが発生しました：{1}",
   "twitter_invalid_tweet_data": "ツイート{0}のデータが無効です：{1}",
   "twitter_error_getting_urls": "ツイート{0}からURLを取得中にエラーが発生しました：{1}",
-  "twitter_user_not_exist": "ユーザー「{0}」は存在しません：{1}"
+  "twitter_user_not_exist": "ユーザー「{0}」は存在しません：{1}",
+  "twitter_guest_activation_failed": "ゲストクライアントのアクティベーションに失敗しました：{0}",
+  "twitter_auth_activation_failed": "認証済みクライアントのアクティベーションに失敗しました：{0}",
+  "twitter_error_fetching_thread": "スレッド内のツイート取得中にエラーが発生しました：{0}",
+  "twitter_error_getting_rss_tweets": "RSSライクなツイートの取得中にエラーが発生しました：{0}",
+  "twitter_commands_message_log": "{0}",
+
+  "settings_lang_file_not_found": "エラー：言語ファイル{0}が見つかりません",
+  "settings_cookie_file_error": "エラー：cookie.jsonファイルが見つからないか解析できません",
+
+  "db_error_update_guild_settings": "update_guild_settingsでデータベースエラー：{0}",
+  "db_error_add_twitter_feed": "add_twitter_feedでデータベースエラー：{0}",
+  "db_error_remove_twitter_feed": "remove_twitter_feedでデータベースエラー：{0}",
+  "db_error_update_tweet_history": "update_tweet_historyでデータベースエラー：{0}",
+  "db_error_set_migration_completed": "set_migration_completedでデータベースエラー：{0}",
+  "db_migration_already_completed": "移行はすでに完了しています。",
+  "db_no_guild_ids_found": "JSONファイルにギルドIDが見つかりません。",
+  "db_migrating_guild": "ギルド{0}を移行中...",
+  "db_feed_already_exists": "チャンネル{0}とユーザー{1}のフィードはすでに存在します。更新を試みています...",
+  "db_migration_success": "移行が正常に完了しました。",
+  "db_error_during_migration": "移行中にエラーが発生しました：{0}",
+
+  "url_fixer_message_log": "{0}：{1}",
+  "url_fixer_url_log": "URL：{0}",
+  "url_fixer_retweet_expanded": "リツイートを展開しました：{0}",
+  "url_fixer_reply_expanded": "返信を展開しました：{0}",
+  "url_fixer_analysis_error": "ツイートの分析中にエラーが発生しました：{0}"
 }

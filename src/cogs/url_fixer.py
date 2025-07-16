@@ -1,14 +1,18 @@
 import discord
 import re
+import asyncio
 from discord.ext import commands
+from ..core.twitter_analyzer import analyze_tweet_with_manager
 
 class URLFixerCog(commands.Cog):
     """
     Cog for fixing URLs in messages.
     This includes replacing Twitter/X URLs with fxtwitter URLs and TikTok URLs with fxtiktok URLs for better embeds.
+    It also analyzes Twitter/X URLs to determine if they are retweets or replies, and expands them accordingly.
 
     メッセージ内のURLを修正するためのコグです。
     これには、より良い埋め込みのためにTwitter/XのURLをfxtwitterのURLに、TikTokのURLをfxtiktokのURLに置き換える機能が含まれます。
+    また、Twitter/XのURLがリツイートか返信かを判断し、それに応じて展開する機能も含まれます。
     """
 
     def __init__(self, bot):
@@ -26,6 +30,31 @@ class URLFixerCog(commands.Cog):
             bot: ボットインスタンス (MyBot)。
         """
         self.bot = bot
+
+    def extract_tweet_id(self, url):
+        """
+        Extract the tweet ID from a Twitter/X URL.
+
+        Args:
+            url (str): The Twitter/X URL.
+
+        Returns:
+            str: The tweet ID if found, None otherwise.
+
+        Twitter/XのURLからツイートIDを抽出します。
+
+        Args:
+            url (str): Twitter/XのURL。
+
+        Returns:
+            str: 見つかった場合はツイートID、それ以外の場合はNone。
+        """
+        # Pattern for Twitter/X URLs with status
+        pattern = r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)'
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+        return None
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -49,7 +78,10 @@ class URLFixerCog(commands.Cog):
         if message.author.bot:
             return
 
-        print(f"{message.author.name}: {message.content}")
+        if self.bot.settings:
+            print(self.bot.settings.lang_data.get("url_fixer_message_log", "{0}: {1}").format(message.author.name, message.content))
+        else:
+            print(f"{message.author.name}: {message.content}")
 
         # Retrieve guild settings from the database.
         # データベースからギルド設定を取得します。
@@ -101,19 +133,56 @@ class URLFixerCog(commands.Cog):
                     replaced_url = url.replace(original_url, replacement_url)
                     replaced_urls.append(replaced_url)
 
-                    # If the URL was replaced with fxtwitter, check for additional URLs embedded within the tweet.
-                    # URLがfxtwitterに置き換えられた場合、ツイート内に埋め込まれた追加のURLをチェックします。
+                    # Log the URL if settings are available
+                    # 設定が利用可能な場合はURLをログに記録します
                     if 'https://fxtwitter.com' in replaced_url:
-                        print(url)
-                        other_url = await self.bot.twitter_client.twitter_msg_get_url(url)
-                        if other_url is not None:
-                            # Collect additional URLs from the tweet, formatting fxtwitter links specially.
-                            # ツイートから追加のURLを収集し、fxtwitterリンクを特別にフォーマットします。
-                            for tweet_url in other_url:
-                                if "https://fxtwitter.com" in tweet_url:
-                                    additional_urls.append(f"[￶]({tweet_url})") # Zero-width space to hide the link text
+                        if self.bot.settings:
+                            print(self.bot.settings.lang_data.get("url_fixer_url_log", "URL: {0}").format(url))
+                        else:
+                            print(url)
+
+                        # Extract tweet ID and analyze the tweet
+                        # ツイートIDを抽出し、ツイートを分析します
+                        tweet_id = self.extract_tweet_id(url)
+                        if tweet_id:
+                            try:
+                                # Analyze the tweet to determine if it's a retweet or reply
+                                # ツイートがリツイートか返信かを判断するために分析します
+                                analysis_result = await analyze_tweet_with_manager(self.bot.twitter_client_manager, tweet_id)
+
+                                # Handle retweets - add the original tweet URL
+                                # リツイートの処理 - 元のツイートのURLを追加します
+                                if analysis_result.get('type') == 'retweet' and 'original_tweet' in analysis_result:
+                                    original_id = analysis_result['original_tweet']['id']
+                                    original_user = analysis_result['original_tweet']['user_screen_name']
+                                    original_url = f"https://fxtwitter.com/{original_user}/status/{original_id}"
+                                    additional_urls.append(original_url)
+
+                                    if self.bot.settings:
+                                        print(self.bot.settings.lang_data.get("url_fixer_retweet_expanded", "Expanded retweet: {0}").format(original_url))
+                                    else:
+                                        print(f"Expanded retweet: {original_url}")
+
+                                # Handle replies - add the thread URLs
+                                # 返信の処理 - スレッドのURLを追加します
+                                elif analysis_result.get('type') == 'reply' and 'reply_thread' in analysis_result:
+                                    thread = analysis_result['reply_thread']
+                                    for tweet in thread:
+                                        if tweet['id'] != tweet_id:  # Skip the original tweet that was already processed
+                                            thread_url = f"https://fxtwitter.com/{tweet['user_screen_name']}/status/{tweet['id']}"
+                                            additional_urls.append(thread_url)
+
+                                            if self.bot.settings:
+                                                print(self.bot.settings.lang_data.get("url_fixer_reply_expanded", "Expanded reply: {0}").format(thread_url))
+                                            else:
+                                                print(f"Expanded reply: {thread_url}")
+                            except Exception as e:
+                                # Log any errors during tweet analysis
+                                # ツイート分析中のエラーをログに記録します
+                                if self.bot.settings:
+                                    print(self.bot.settings.lang_data.get("url_fixer_analysis_error", "Error analyzing tweet: {0}").format(str(e)))
                                 else:
-                                    additional_urls.append(tweet_url)
+                                    print(f"Error analyzing tweet: {str(e)}")
 
                     break # Only apply one replacement per URL.
 
@@ -142,13 +211,14 @@ class URLFixerCog(commands.Cog):
             replaced_urls: 置換されたURLのリスト（例: 元のTwitter/XのURLがfxtwitterに変換されたもの）。
             additional_urls: 処理されたツイートのコンテンツ内で見つかったURLのリスト。
         """
-        # Format replaced URLs with a zero-width space to hide the link text in Discord.
-        # Discordでリンクテキストを非表示にするために、ゼロ幅スペースで置換されたURLをフォーマットします。
+        # Format all URLs with a zero-width space to hide the link text in Discord.
+        # Discordでリンクテキストを非表示にするために、すべてのURLをゼロ幅スペースでフォーマットします。
         formatted_replaced_urls = [f"[￶]({url})" for url in replaced_urls]
+        formatted_additional_urls = [f"[￶]({url})" for url in additional_urls]
 
-        # Combine all URLs to be sent.
-        # 送信するすべてのURLを結合します。
-        all_urls = formatted_replaced_urls + additional_urls
+        # Combine all formatted URLs to be sent, with replaced URLs at the end.
+        # フォーマットされたすべてのURLを送信するために結合します。置換されたURLは最後に配置します。
+        all_urls = formatted_additional_urls + formatted_replaced_urls
 
         # Discord's maximum message length.
         # Discordの最大メッセージ長。
