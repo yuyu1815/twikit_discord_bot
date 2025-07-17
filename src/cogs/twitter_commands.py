@@ -60,53 +60,42 @@ class TwitterCommandsCog(commands.Cog):
         print(self.lang.get("twitter_commands_message_log", "{0}").format(msg))
         await interaction.response.send_message(msg, ephemeral=ephemeral)
 
-    @tasks.loop(minutes=1)  # Default to 1 minute, will be adjusted based on guild settings
-    async def check_twitter_updates(self):
+    @tasks.loop(seconds=10)
+    async def loop(self):
         """
         Periodically check for new tweets from registered Twitter users and post them to the designated Discord channels.
-        This task's interval is dynamically adjusted based on the minimum cool_down_minutes setting across all guilds.
+        This matches the implementation from src_old/Bot.py.
 
         登録されたTwitterユーザーの新しいツイートを定期的にチェックし、指定されたDiscordチャンネルに投稿します。
-        このタスクの間隔は、すべてのギルドの最小cool_down_minutes設定に基づいて動的に調整されます。
+        これはsrc_old/Bot.pyの実装と一致します。
         """
-        try:
-            # Get all guild IDs from the database
-            guild_ids = self.bot.db.get_all_guild_ids()
-            current_time = time.time()
+        now_time = time.time()
+        guild_ids = self.bot.db.get_all_guild_ids()
+        if guild_ids is None:
+            return
+        for guild_id in guild_ids:
+            guild_settings = self.bot.db.get_guild_settings(guild_id)
+            if guild_settings is None or not guild_settings.get('twitter_updates_enabled', False):
+                continue
 
-            for guild_id in guild_ids:
-                # Get guild settings
-                guild_settings = self.bot.db.get_guild_settings(guild_id)
+            # Check cooldown per guild
+            if int(guild_settings['cool_down_minutes']) * 60 > now_time - guild_settings.get('last_checked_time', 0):
+                continue
 
-                # Skip if Twitter updates are disabled for this guild
-                if not guild_settings or not guild_settings['twitter_updates_enabled']:
-                    continue
+            # Update last checked time for the entire guild
+            self.bot.db.update_guild_settings(guild_id, last_checked_time=int(time.time()))
 
-                # Check if it's time to check for updates based on the guild's cool_down_minutes
-                cool_down_seconds = guild_settings['cool_down_minutes'] * 60
-                last_checked_time = guild_settings['last_checked_time']
+            # Get all Twitter feeds for this guild and process them
+            feeds = self.bot.db.get_twitter_feeds(guild_id)
+            for feed in feeds:
+                await self._process_twitter_feed(guild_id, feed, guild_settings)
 
-                if current_time - last_checked_time < cool_down_seconds:
-                    continue  # Not time to check yet
-
-                # Update the last checked time
-                self.bot.db.update_guild_settings(guild_id, last_checked_time=int(current_time))
-
-                # Get all Twitter feeds for this guild
-                feeds = self.bot.db.get_twitter_feeds(guild_id)
-
-                for feed in feeds:
-                    await self._process_twitter_feed(guild_id, feed, guild_settings)
-
-        except Exception as e:
-            print(f"Error in check_twitter_updates task: {e}")
-
-    @check_twitter_updates.before_loop
-    async def before_check_twitter_updates(self):
+    @loop.before_loop
+    async def before_loop(self):
         """
-        Wait until the bot is ready before starting the check_twitter_updates task.
+        Wait until the bot is ready before starting the loop task.
 
-        check_twitter_updatesタスクを開始する前に、ボットの準備が整うまで待ちます。
+        loopタスクを開始する前に、ボットの準備が整うまで待ちます。
         """
         await self.bot.wait_until_ready()
 
@@ -405,24 +394,24 @@ class TwitterCommandsCog(commands.Cog):
 
     def update_check_interval(self):
         """
-        Update the check_twitter_updates task interval based on the minimum cooldown time across all guilds.
+        Update the loop task interval based on the minimum cooldown time across all guilds.
         If the task is already running, it will be restarted with the new interval.
 
-        すべてのギルドの最小クールダウン時間に基づいて、check_twitter_updatesタスクの間隔を更新します。
+        すべてのギルドの最小クールダウン時間に基づいて、loopタスクの間隔を更新します。
         タスクがすでに実行されている場合は、新しい間隔で再起動されます。
         """
         # Get the minimum cooldown time
         min_cooldown = self.get_minimum_cooldown()
 
         # If the task is already running, cancel it
-        if self.check_twitter_updates.is_running():
-            self.check_twitter_updates.cancel()
+        if self.loop.is_running():
+            self.loop.cancel()
 
         # Change the interval and restart the task
-        self.check_twitter_updates.change_interval(minutes=min_cooldown)
-        self.check_twitter_updates.start()
+        self.loop.change_interval(seconds=10)
+        self.loop.start()
 
-        print(f"Twitter update check interval set to {min_cooldown} minutes")
+        print(f"Twitter update loop interval set to 10 seconds")
 
     @app_commands.command(name='check-time')
     @app_commands.checks.has_permissions(manage_channels=True)

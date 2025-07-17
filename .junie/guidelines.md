@@ -70,6 +70,69 @@ Based on the refactoring proposal, the following improvements are planned:
 ## Getting Started
 For setup instructions, refer to the main README.md file in the project root.
 
+## AI Development Guidelines
+
+### Documentation Reference Requirements
+When working on this project, AI assistants must:
+
+1. **Always check AI_Document directory first**:
+   - Review `AI_Document/ライブラリ仕様書一覧.md` to understand available library specifications
+   - Reference specific library documentation files (e.g., `discord.py仕様書.md`, `twikit仕様書.md`) when working with those libraries
+   - Use the Context7 data and code snippets provided in these documents for accurate implementation
+
+2. **Minimize file references by consulting README.md**:
+   - Use the project structure section in `README.md` to understand essential files and directories
+   - Focus on core files: `main.py`, `src/core/`, `src/cogs/`, `src/config/`, `src/lang/`
+   - Avoid referencing deprecated files in `src_old/` directory unless specifically needed
+   - Prioritize files mentioned in the README's project structure over other files
+
+3. **Essential files to reference (in order of priority)**:
+   - `README.md` - Project overview and structure
+   - `AI_Document/ライブラリ仕様書一覧.md` - Library specifications index
+   - Specific library documentation in `AI_Document/` as needed
+   - Core implementation files in `src/core/` and `src/cogs/`
+   - Configuration files: `requirements.txt`, `.env`, `src/config/settings.py`
+
+4. **File reference optimization**:
+   - Before examining any file, check if it's mentioned in README.md project structure
+   - Use library specifications from AI_Document instead of exploring library source code
+   - Focus on files that are actively maintained (avoid `src_old/` unless necessary)
+
+## Automated README Updates
+
+### README Auto-Update System
+The project includes an automated system to keep the README.md file synchronized with the actual project structure. This ensures that the documentation always reflects the current state of the codebase.
+
+#### How It Works
+- **Script**: `update_readme.py` automatically scans the project directory
+- **Target**: Updates the "Project Structure" section in README.md
+- **Detection**: Identifies added, removed, or moved files and directories
+- **Exclusions**: Automatically excludes `.venv/`, `.git/`, `src_old/`, and other non-essential directories
+
+#### Usage
+Run the update script manually:
+```bash
+python3 update_readme.py
+```
+
+#### Integration Recommendations
+1. **Before Commits**: Run the script before committing changes that affect project structure
+2. **CI/CD Integration**: Add the script to your continuous integration pipeline
+3. **Git Hooks**: Consider adding a pre-commit hook to automatically update README
+4. **Regular Maintenance**: Run periodically to ensure documentation stays current
+
+#### What Gets Updated
+- **File Structure**: Complete directory tree with descriptions
+- **New Files**: Automatically detected and added with appropriate descriptions
+- **Deleted Files**: Automatically removed from the structure
+- **Moved Files**: Reflected in their new locations
+
+#### Customization
+The script includes predefined descriptions for key files and directories. To add descriptions for new files:
+1. Edit the `get_file_description()` method in `update_readme.py`
+2. Add entries to the descriptions dictionary
+3. Run the script to apply changes
+
 ## Contributing
 When contributing to this project, please follow these guidelines:
 1. Create a feature branch for your changes
@@ -77,3 +140,4 @@ When contributing to this project, please follow these guidelines:
 3. Ensure all tests pass before submitting a pull request
 4. Follow the existing code style and architecture
 5. Document your changes thoroughly
+6. **Run `python3 update_readme.py` if you add, remove, or move files**

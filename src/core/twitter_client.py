@@ -1,5 +1,3 @@
-import re
-import aiohttp
 from twikit import Client
 from pathlib import Path
 

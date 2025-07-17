@@ -1,6 +1,9 @@
 cookie.json
 cookie_edit.json
+
+# old
 DiscordSetting.json
 Twitter_msg.json
 
-
+# new
+bot.db

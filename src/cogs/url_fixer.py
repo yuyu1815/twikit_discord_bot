@@ -239,7 +239,7 @@ class URLFixerCog(commands.Cog):
                 # Add URL to current message with a newline if the message is not empty.
                 # メッセージが空でない場合、改行を追加して現在のメッセージにURLを追加します。
                 if current_message:
-                    current_message += "\n" + url
+                    current_message += " " + url
                 else:
                     current_message = url # If empty, just set the URL as the message.
 

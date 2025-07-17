@@ -121,26 +121,68 @@ python main.py
 ## Project Structure
 ```
 twikit_discord_bot/
-├── data/                     # Application data files
-│   ├── cookie.json          # Twitter authentication cookie
-│   ├── cookie_edit.json     # Backup cookie file
-│   ├── DiscordSetting.json  # Discord server settings
-│   └── Twitter_msg.json     # Twitter message cache
-├── src/
-│   ├── cogs/                # Discord command modules
+├── AI_Document/  # AI development documentation
+│   ├── discord.py仕様書.md
+│   ├── discord.py関数一覧.md
+│   ├── twikit仕様書.md
+│   ├── twikit関数一覧.md
+│   └── ライブラリ仕様書一覧.md
+├── data/  # Application data files
+│   ├── bot.db  # SQLite database
+│   ├── cookie.json  # Twitter authentication cookie
+│   └── cookie_edit.json  # Backup cookie file
+├── img/  # Image assets
+│   ├── auto_say.png
+│   ├── check_command.png
+│   ├── command_1.png
+│   ├── cookie.png
+│   ├── del_command.png
+│   ├── set_command.png
+│   ├── Setup_1.png
+│   ├── Setup_2.png
+│   ├── Setup_3.png
+│   ├── time_command.png
+│   └── Twitter.jpg
+├── src/  # Source code
+│   ├── cogs/  # Discord command modules
+│   │   ├── __init__.py
+│   │   ├── README.md  # Project documentation
 │   │   ├── twitter_commands.py  # Twitter-related slash commands
-│   │   └── url_fixer.py         # URL replacement functionality
-│   ├── core/                # Core bot functionality
-│   │   ├── bot.py           # Main bot class and event handlers
-│   │   ├── database.py      # Database operations
-│   │   └── twitter_client.py    # Twitter API client
-│   ├── config/              # Configuration management
-│   │   └── settings.py      # Settings and file I/O operations
-│   └── lang/                # Language files
-│       ├── en_US.json       # English translations
-│       ├── ja_JP.json       # Japanese translations
-│       └── zh_CN.json       # Chinese translations
-├── main.py                  # Application entry point
-├── requirements.txt         # Python dependencies
-└── .env                     # Environment variables
+│   │   └── url_fixer.py  # URL replacement functionality
+│   ├── config/  # Configuration management
+│   │   ├── __init__.py
+│   │   ├── README.md  # Project documentation
+│   │   └── settings.py  # Settings and file I/O operations
+│   ├── core/  # Core bot functionality
+│   │   ├── __init__.py
+│   │   ├── bot.py  # Main bot class and event handlers
+│   │   ├── database.py  # Database operations
+│   │   ├── README.md  # Project documentation
+│   │   ├── twitter_analyzer.py  # Tweet analysis functionality
+│   │   ├── twitter_client.py  # Twitter API client
+│   │   └── twitter_client_manager.py  # Twitter client management
+│   ├── lang/  # Language files
+│   │   ├── en_US.json  # English translations
+│   │   ├── ja_JP.json  # Japanese translations
+│   │   ├── README.md  # Project documentation
+│   │   └── zh_CN.json  # Chinese translations
+│   ├── rss/  # RSS functionality
+│   │   ├── __init__.py
+│   │   ├── README.md  # Project documentation
+│   │   └── rss_generator.py  # RSS feed generation
+│   ├── __init__.py
+│   └── README.md  # Project documentation
+├── .env  # Environment variables
+├── get_tweet.json
+├── main.py  # Application entry point
+├── README.md  # Project documentation
+├── README_ja.md
+├── README_zh.md
+├── requirements.txt  # Python dependencies
+├── sample.env
+├── test_parent_tweet.py
+├── test_twitter_analyzer.py
+├── TWITTER_ANALYZER_README.md
+├── update_readme.py
+└── 使用ライブラリ一覧.md
 ```
