@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript to Static HTML Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .highlight {
+            background-color: #ffffcc;
+            padding: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>JavaScript to Static HTML Conversion Example</h1>
+    
+    <div class="card">
+        <h2>Basic Variable Replacement</h2>
+        <p>Current Date and Time: <span data-js-content="currentDateTime">Loading...</span></p>
+        <p>Browser Information: <span data-js-content="browserInfo">Loading...</span></p>
+    </div>
+    
+    <div class="card">
+        <h2>Calculated Values</h2>
+        <p>Sum of numbers 1-100: <span data-js-content="sum">Calculating...</span></p>
+        <p>Fibonacci(10): <span data-js-content="fibResult">Calculating...</span></p>
+        <p>Random UUID: <span data-js-content="randomUUID">Generating...</span></p>
+    </div>
+    
+    <div class="card">
+        <h2>Dynamic Attributes</h2>
+        <p>
+            <a href="#" data-js-attr="href:dynamicLink" data-js-content="linkText">Dynamic Link</a>
+        </p>
+        <p>
+            <img src="placeholder.jpg" alt="Random Image" width="200" 
+                 data-js-attr="src:imageUrl" data-js-attr="alt:imageAlt">
+        </p>
+    </div>
+    
+    <div class="card">
+        <h2>Dynamic Table Generation</h2>
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody data-js-content="tableContent">
+                <tr>
+                    <td colspan="3">Loading data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>Conditional Content</h2>
+        <div data-js-content="conditionalContent">
+            This content will be replaced based on conditions.
+        </div>
+    </div>
+    
+    <script>
+        // Basic variables
+        var currentDateTime = new Date().toLocaleString();
+        var browserInfo = navigator.userAgent;
+        
+        // Calculated values
+        var sum = 0;
+        for (var i = 1; i <= 100; i++) {
+            sum += i;
+        }
+        
+        // Fibonacci function
+        function fibonacci(n) {
+            if (n <= 1) return n;
+            return fibonacci(n-1) + fibonacci(n-2);
+        }
+        var fibResult = fibonacci(10);
+        
+        // Generate random UUID
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        var randomUUID = generateUUID();
+        
+        // Dynamic attributes
+        var dynamicLink = "https://example.com/page/" + Math.floor(Math.random() * 100);
+        var linkText = "Visit Example Page";
+        
+        var imageUrl = "https://picsum.photos/200/300?random=" + Math.floor(Math.random() * 1000);
+        var imageAlt = "Random image #" + Math.floor(Math.random() * 1000);
+        
+        // Table data generation
+        var tableData = [];
+        for (var i = 1; i <= 5; i++) {
+            tableData.push({
+                id: i,
+                name: "Item " + i,
+                value: Math.floor(Math.random() * 1000) / 10
+            });
+        }
+        
+        // Generate table HTML
+        var tableContent = "";
+        for (var i = 0; i < tableData.length; i++) {
+            var item = tableData[i];
+            tableContent += "<tr>" +
+                "<td>" + item.id + "</td>" +
+                "<td>" + item.name + "</td>" +
+                "<td>" + item.value + "</td>" +
+                "</tr>";
+        }
+        
+        // Conditional content
+        var hour = new Date().getHours();
+        var conditionalContent = "";
+        
+        if (hour < 12) {
+            conditionalContent = "<p class='highlight'>Good morning! It's before noon.</p>";
+        } else if (hour < 18) {
+            conditionalContent = "<p class='highlight'>Good afternoon! It's after noon but before 6 PM.</p>";
+        } else {
+            conditionalContent = "<p class='highlight'>Good evening! It's after 6 PM.</p>";
+        }
+    </script>
+</body>
+</html>

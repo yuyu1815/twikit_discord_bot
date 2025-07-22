@@ -155,6 +155,9 @@ class TwitterCommandsCog(commands.Cog):
             tweet_type_filter = guild_settings.get('tweet_type_filter', 'original')
             tweet_types = tweet_type_filter.split(',')
 
+            # Track the most recent tweet ID processed in this batch
+            most_recent_tweet_id = None
+
             # Process each new tweet
             for tweet in new_tweets:
                 # Analyze the tweet to determine its type
@@ -168,12 +171,16 @@ class TwitterCommandsCog(commands.Cog):
                 # Create and send an embed for the tweet
                 await self._send_tweet_embed(channel, tweet, analysis)
 
-                # Update the last tweet ID in the database
+                # Update the most recent tweet ID
+                most_recent_tweet_id = tweet.id
+
+            # After processing all tweets, update the database with the most recent tweet ID
+            if most_recent_tweet_id:
                 if tweet_history:
                     self.bot.db.update_tweet_history(
                         channel_id, 
                         twitter_user_name, 
-                        tweet.id, 
+                        most_recent_tweet_id, 
                         last_tweet_id
                     )
                 else:
@@ -181,12 +188,9 @@ class TwitterCommandsCog(commands.Cog):
                     self.bot.db.update_tweet_history(
                         channel_id, 
                         twitter_user_name, 
-                        tweet.id, 
+                        most_recent_tweet_id, 
                         0
                     )
-
-                # Update the last_tweet_id for subsequent tweets in this batch
-                last_tweet_id = tweet.id
 
         except Exception as e:
             print(f"Error processing Twitter feed {feed['twitter_user_name']} for guild {guild_id}: {e}")
