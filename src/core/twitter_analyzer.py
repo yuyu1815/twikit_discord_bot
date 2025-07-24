@@ -1,12 +1,12 @@
 """
 This module provides functions for analyzing Twitter tweets, including
 determining tweet types (retweet, reply, normal), extracting tweet threads,
-and fetching RSS-like tweet feeds. It leverages the twikit library and
+and fetching the latest tweets from users. It leverages the twikit library and
 integrates with the TwitterClientManager for robust client handling.
 
 このモジュールは、Twitterのツイートを分析するための機能を提供します。
 これには、ツイートのタイプ（リツイート、返信、通常）の判別、ツイートスレッドの抽出、
-RSSのようなツイートフィードの取得が含まれます。twikitライブラリを活用し、
+ユーザーからの最新ツイートの取得が含まれます。twikitライブラリを活用し、
 堅牢なクライアント処理のためにTwitterClientManagerと統合されています。
 """
 
@@ -152,12 +152,12 @@ async def analyze_tweet(client: Union[GuestClient, Client], tweet_id: str) -> Di
         result["error"] = str(e)
         return result
 
-async def get_rss_like_tweets(client: Client, user_id: Optional[str] = None, screen_name: Optional[str] = None, tweet_type: str = 'Tweets', count: int = 10, settings=None) -> List[Tweet]:
+async def get_latest_tweets(client: Client, user_id: Optional[str] = None, screen_name: Optional[str] = None, tweet_type: str = 'Tweets', count: int = 10, settings=None) -> List[Tweet]:
     """
-    Fetches the latest tweets from a specified user, mimicking an RSS feed.
+    Fetches the latest tweets from a specified user.
     This function requires an authenticated client.
 
-    指定されたユーザーの最新のツイートを取得し、RSSフィードのように機能します。
+    指定されたユーザーの最新のツイートを取得します。
     この関数は認証済みクライアントを必要とします。
 
     Args:
@@ -201,9 +201,9 @@ async def get_rss_like_tweets(client: Client, user_id: Optional[str] = None, scr
         # Log the error and re-raise it for higher-level handling.
         # エラーをログに記録し、上位レベルでの処理のために再発生させます。
         if settings:
-            print(settings.lang_data.get("twitter_error_getting_rss_tweets", "Error getting RSS-like tweets: {0}").format(str(e)))
+            print(settings.lang_data.get("twitter_error_getting_latest_tweets", "Error getting latest tweets: {0}").format(str(e)))
         else:
-            print(f"Error getting RSS-like tweets: {str(e)}")
+            print(f"Error getting latest tweets: {str(e)}")
         raise
 
 # Convenience functions that use the client manager
@@ -245,13 +245,13 @@ async def get_tweet_thread_with_manager(client_manager: TwitterClientManager, tw
     """
     return await client_manager.execute_with_fallback(get_tweet_thread, tweet_id, client_manager.settings)
 
-async def get_rss_like_tweets_with_manager(client_manager: TwitterClientManager, user_id: Optional[str] = None, 
+async def get_latest_tweets_with_manager(client_manager: TwitterClientManager, user_id: Optional[str] = None, 
                                           screen_name: Optional[str] = None, tweet_type: str = 'Tweets', count: int = 10) -> List[Tweet]:
     """
-    Fetches RSS-like tweets using the `TwitterClientManager`. This operation always uses
+    Fetches the latest tweets using the `TwitterClientManager`. This operation always uses
     the authenticated client managed by `TwitterClientManager`.
 
-    `TwitterClientManager`を使用してRSSのようなツイートを取得します。この操作は常に
+    `TwitterClientManager`を使用して最新のツイートを取得します。この操作は常に
     `TwitterClientManager`によって管理される認証済みクライアントを使用します。
 
     Args:
@@ -270,5 +270,5 @@ async def get_rss_like_tweets_with_manager(client_manager: TwitterClientManager,
         List[Tweet]: A list of `Tweet` objects representing the fetched tweets.
                      取得されたツイートを表す`Tweet`オブジェクトのリスト。
     """
-    client = await client_manager.get_rss_client()
-    return await get_rss_like_tweets(client, user_id, screen_name, tweet_type, count, client_manager.settings)
+    client = await client_manager.get_authenticated_client()
+    return await get_latest_tweets(client, user_id, screen_name, tweet_type, count, client_manager.settings)

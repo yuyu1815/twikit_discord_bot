@@ -5,8 +5,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from pathlib import Path
 
-from src.rss.rss_generator import RSSGenerator
-from src.core.twitter_analyzer import get_rss_like_tweets_with_manager, analyze_tweet_with_manager
+from src.core.twitter_analyzer import get_latest_tweets_with_manager, analyze_tweet_with_manager
 
 class TwitterCommandsCog(commands.Cog):
     """
@@ -33,9 +32,6 @@ class TwitterCommandsCog(commands.Cog):
         """
         self.bot = bot
         self.lang = bot.settings.lang_data
-        # Dictionary to track the last RSS update time for each Twitter user
-        # 各Twitterユーザーの最後のRSS更新時間を追跡する辞書
-        self.last_rss_update_times = {}
 
         # Start the automatic tweet checking task with the minimum cooldown time
         # 最小クールダウン時間で自動ツイートチェックタスクを開始
@@ -128,13 +124,33 @@ class TwitterCommandsCog(commands.Cog):
             # Get tweet history for this feed
             tweet_history = self.bot.db.get_tweet_history(channel_id, twitter_user_name)
             last_tweet_id = tweet_history[0] if tweet_history and tweet_history[0] is not None else 0
+            last_tweet_url = tweet_history[2] if tweet_history and tweet_history[2] is not None else None
+            second_last_tweet_url = tweet_history[3] if tweet_history and tweet_history[3] is not None else None
+
+            # Check if this Twitter user was recently updated
+            last_updated = self.bot.db.get_twitter_user_last_updated(twitter_user_name)
+            current_time = int(time.time())
+            
+            # If the user was updated recently, skip the API request and use cached data
+            if last_updated > 0 and (current_time - last_updated) < self.bot.settings.USER_UPDATE_INTERVAL_SECONDS:
+                print(f"Skipping API request for {twitter_user_name}, last updated {current_time - last_updated} seconds ago")
+                
+                # Use the stored URL if available
+                if last_tweet_url and last_tweet_id:
+                    print(f"Using stored URL for tweet {last_tweet_id}: {last_tweet_url}")
+                    await channel.send(last_tweet_url, silent=True)
+                
+                return
 
             # Fetch the latest tweets for the user
-            tweets = await get_rss_like_tweets_with_manager(
+            tweets = await get_latest_tweets_with_manager(
                 self.bot.twitter_client_manager,
                 screen_name=twitter_user_name,
                 count=10
             )
+
+            # Update the last_updated timestamp for this Twitter user
+            self.bot.db.update_twitter_user_last_updated(twitter_user_name)
 
             if not tweets:
                 return  # No tweets found
@@ -146,7 +162,15 @@ class TwitterCommandsCog(commands.Cog):
                     new_tweets.append(tweet)
 
             if not new_tweets:
-                return  # No new tweets
+                # No new tweets, but we can still use the stored URL if available
+                if last_tweet_url and last_tweet_id:
+                    # Use the stored URL instead of fetching the tweet again
+                    print(f"Using stored URL for tweet {last_tweet_id}: {last_tweet_url}")
+                    
+                    # Send the stored tweet URL to the channel
+                    await channel.send(last_tweet_url, silent=True)
+                
+                return
 
             # Sort tweets by ID (oldest first)
             new_tweets.sort(key=lambda t: int(t.id))
@@ -174,14 +198,19 @@ class TwitterCommandsCog(commands.Cog):
                 # Update the most recent tweet ID
                 most_recent_tweet_id = tweet.id
 
-            # After processing all tweets, update the database with the most recent tweet ID
+            # After processing all tweets, update the database with the most recent tweet ID and URL
             if most_recent_tweet_id:
+                # Create the tweet URL
+                most_recent_tweet_url = f"https://fxtwitter.com/{twitter_user_name}/status/{most_recent_tweet_id}"
+                
                 if tweet_history:
                     self.bot.db.update_tweet_history(
                         channel_id, 
                         twitter_user_name, 
                         most_recent_tweet_id, 
-                        last_tweet_id
+                        last_tweet_id,
+                        most_recent_tweet_url,
+                        last_tweet_url
                     )
                 else:
                     # If there's no history yet, create a new entry
@@ -189,7 +218,9 @@ class TwitterCommandsCog(commands.Cog):
                         channel_id, 
                         twitter_user_name, 
                         most_recent_tweet_id, 
-                        0
+                        0,
+                        most_recent_tweet_url,
+                        None
                     )
 
         except Exception as e:
@@ -710,105 +741,3 @@ class TwitterCommandsCog(commands.Cog):
         # Also send the converted URL for preview
         await interaction.followup.send(fx_url)
 
-    @app_commands.command(name='generate_rss')
-    @app_commands.checks.has_permissions(manage_channels=True)
-    async def generate_rss(self, interaction: discord.Interaction, twitter_user_name: str):
-        """
-        Generate an RSS feed for a Twitter user.
-        This command creates or updates an RSS XML file containing the latest tweets from the specified user.
-
-        Args:
-            interaction: The interaction object from Discord.
-            twitter_user_name (str): The Twitter username to generate an RSS feed for.
-
-        Twitterユーザーの最新ツイートを含むRSSフィードを生成します。
-        このコマンドは、指定されたユーザーの最新ツイートを含むRSS XMLファイルを作成または更新します。
-
-        Args:
-            interaction: Discordからのインタラクションオブジェクト。
-            twitter_user_name (str): RSSフィードを生成するTwitterユーザー名。
-        """
-        # Verify if the specified Twitter user exists
-        # 指定されたTwitterユーザーが存在するかどうかを確認します
-        if not await self.bot.twitter_client.user_exist(twitter_user_name):
-            await self.message_send(interaction, self.lang["unknown_user_msg"], True)
-            return
-
-        # Inform the user that we're processing their request
-        # リクエストを処理していることをユーザーに通知します
-        await interaction.response.defer(ephemeral=True)
-
-        # Check if the user is in cooldown period
-        # ユーザーがクールダウン期間中かどうかを確認します
-        now_time = time.time()
-        last_update_time = self.last_rss_update_times.get(twitter_user_name, 0)
-        cooldown_seconds = self.bot.settings.rss_feed_cooldown_minutes * 60
-
-        # Create the RSS output directory if it doesn't exist
-        # RSS出力ディレクトリが存在しない場合は作成します
-        rss_output_dir = self.bot.settings.rss_feed_output_dir
-        os.makedirs(rss_output_dir, exist_ok=True)
-
-        # Check if an RSS file already exists for this user
-        # このユーザーのRSSファイルが既に存在するかどうかを確認します
-        rss_file_path = Path(rss_output_dir) / f"{twitter_user_name}.xml"
-        file_exists = rss_file_path.exists()
-
-        # If in cooldown and file exists, return the existing file
-        # クールダウン中でファイルが存在する場合、既存のファイルを返します
-        if file_exists and (now_time - last_update_time) < cooldown_seconds:
-            cooldown_remaining = int((last_update_time + cooldown_seconds - now_time) / 60) + 1
-            await interaction.followup.send(
-                f"{self.lang.get('rss_cooldown_message', 'RSS feed for {0} was updated recently. Please try again in {1} minutes.').format(twitter_user_name, cooldown_remaining)}\n"
-                f"{self.lang.get('rss_existing_file', 'Using existing RSS file:')} {rss_file_path}",
-                ephemeral=True
-            )
-            return
-
-        try:
-            # Get tweets using the Twitter client manager
-            # Twitterクライアントマネージャーを使用してツイートを取得します
-            tweets = await get_rss_like_tweets_with_manager(
-                self.bot.twitter_client_manager,
-                screen_name=twitter_user_name,
-                count=self.bot.settings.rss_feed_max_tweets
-            )
-
-            if not tweets:
-                await interaction.followup.send(
-                    self.lang.get('rss_no_tweets', 'No tweets found for {0}.').format(twitter_user_name),
-                    ephemeral=True
-                )
-                return
-
-            # Generate RSS feed
-            # RSSフィードを生成します
-            rss_generator = RSSGenerator(
-                output_dir=str(rss_output_dir),
-                max_tweets=self.bot.settings.rss_feed_max_tweets
-            )
-
-            # Save RSS feed to file
-            # RSSフィードをファイルに保存します
-            file_path = rss_generator.save_rss(tweets, twitter_user_name)
-
-            # Update the last update time for this user
-            # このユーザーの最終更新時間を更新します
-            self.last_rss_update_times[twitter_user_name] = now_time
-
-            # Send success message with file path
-            # ファイルパスを含む成功メッセージを送信します
-            await interaction.followup.send(
-                self.lang.get('rss_generation_success', 'RSS feed for {0} generated successfully.').format(twitter_user_name) + 
-                f"\n{self.lang.get('rss_file_path', 'File path:')} {file_path}",
-                ephemeral=True
-            )
-
-        except Exception as e:
-            # Handle errors
-            # エラーを処理します
-            error_message = str(e)
-            await interaction.followup.send(
-                self.lang.get('rss_generation_error', 'Error generating RSS feed: {0}').format(error_message),
-                ephemeral=True
-            )

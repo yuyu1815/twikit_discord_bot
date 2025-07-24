@@ -9,7 +9,7 @@ from src.core.twitter_client_manager import TwitterClientManager
 from src.core.twitter_analyzer import (
     analyze_tweet_with_manager,
     get_tweet_thread_with_manager,
-    get_rss_like_tweets_with_manager
+    get_latest_tweets_with_manager
 )
 
 # Test tweet IDs (same as in test_parent_tweet.py)
@@ -62,17 +62,17 @@ async def test_get_tweet_thread(client_manager, tweet_id):
         traceback.print_exc()
         return None
 
-async def test_get_rss_like_tweets(client_manager, screen_name, count=5):
-    """Test the get_rss_like_tweets function with a specific user."""
-    print(f"\n--- Testing get_rss_like_tweets with user: {screen_name} ---")
+async def test_get_latest_tweets(client_manager, screen_name, count=5):
+    """Test the get_latest_tweets function with a specific user."""
+    print(f"\n--- Testing get_latest_tweets with user: {screen_name} ---")
     try:
-        tweets = await get_rss_like_tweets_with_manager(client_manager, screen_name=screen_name, count=count)
+        tweets = await get_latest_tweets_with_manager(client_manager, screen_name=screen_name, count=count)
         print(f"Retrieved {len(tweets)} tweets")
         for i, tweet in enumerate(tweets):
             print(f"  [{i+1}] {tweet.created_at}: {tweet.text[:50]}...")
         return tweets
     except Exception as e:
-        print(f"Error in get_rss_like_tweets: {e}")
+        print(f"Error in get_latest_tweets: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -98,11 +98,11 @@ async def main():
     # Test get_tweet_thread with a reply tweet
     await test_get_tweet_thread(client_manager, REPLY_TWEET_ID)
     
-    # Test get_rss_like_tweets with a user
+    # Test get_latest_tweets with a user
     try:
-        await test_get_rss_like_tweets(client_manager, TEST_USER_SCREEN_NAME)
+        await test_get_latest_tweets(client_manager, TEST_USER_SCREEN_NAME)
     except RuntimeError as e:
-        print(f"RSS test failed (expected if no auth client available): {e}")
+        print(f"Latest tweets test failed (expected if no auth client available): {e}")
     
     print("\nAll tests completed.")
 

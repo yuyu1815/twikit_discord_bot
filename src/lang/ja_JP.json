@@ -57,7 +57,7 @@
   "twitter_guest_activation_failed": "ゲストクライアントのアクティベーションに失敗しました：{0}",
   "twitter_auth_activation_failed": "認証済みクライアントのアクティベーションに失敗しました：{0}",
   "twitter_error_fetching_thread": "スレッド内のツイート取得中にエラーが発生しました：{0}",
-  "twitter_error_getting_rss_tweets": "RSSライクなツイートの取得中にエラーが発生しました：{0}",
+  "twitter_error_getting_latest_tweets": "最新のツイートの取得中にエラーが発生しました：{0}",
   "twitter_commands_message_log": "{0}",
 
   "settings_lang_file_not_found": "エラー：言語ファイル{0}が見つかりません",

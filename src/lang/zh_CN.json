@@ -57,7 +57,7 @@
   "twitter_guest_activation_failed": "访客客户端激活失败：{0}",
   "twitter_auth_activation_failed": "认证客户端激活失败：{0}",
   "twitter_error_fetching_thread": "获取线程中的推文时出错：{0}",
-  "twitter_error_getting_rss_tweets": "获取RSS类推文时出错：{0}",
+  "twitter_error_getting_latest_tweets": "获取最新推文时出错：{0}",
   "twitter_commands_message_log": "{0}",
 
   "settings_lang_file_not_found": "错误：找不到语言文件{0}",

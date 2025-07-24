@@ -100,17 +100,20 @@ class Database:
             guild_id INTEGER NOT NULL,
             channel_id INTEGER NOT NULL,
             twitter_user_name TEXT NOT NULL,
+            last_updated INTEGER DEFAULT 0,
             UNIQUE(channel_id, twitter_user_name)
         )
         ''')
 
-        # Create tweet_history table to store the last two tweet IDs for each feed.
-        # 各フィードの最新2つのツイートIDを保存するためのtweet_historyテーブルを作成します。
+        # Create tweet_history table to store the last two tweet IDs and URLs for each feed.
+        # 各フィードの最新2つのツイートIDとURLを保存するためのtweet_historyテーブルを作成します。
         self.cursor.execute('''
         CREATE TABLE IF NOT EXISTS tweet_history (
             feed_id INTEGER PRIMARY KEY,
             last_tweet_id INTEGER DEFAULT 0,
             second_last_tweet_id INTEGER DEFAULT 0,
+            last_tweet_url TEXT,
+            second_last_tweet_url TEXT,
             FOREIGN KEY (feed_id) REFERENCES twitter_feeds(id) ON DELETE CASCADE
         )
         ''')
@@ -310,10 +313,10 @@ class Database:
                 # 新しいTwitterフィードをtwitter_feedsテーブルに挿入します。
                 self.cursor.execute(
                     """
-                    INSERT INTO twitter_feeds (guild_id, channel_id, twitter_user_name)
-                    VALUES (?, ?, ?)
+                    INSERT INTO twitter_feeds (guild_id, channel_id, twitter_user_name, last_updated)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (guild_id, channel_id, twitter_user_name)
+                    (guild_id, channel_id, twitter_user_name, int(time.time()))
                 )
 
                 # Get the ID of the newly inserted feed to link it to tweet history.
@@ -417,16 +420,16 @@ class Database:
             guild_id (int): The ID of the Discord guild.
 
         Returns:
-            list: A list of dictionaries, each containing 'channel_id' and 'twitter_user_name' for the feeds.
+            list: A list of dictionaries, each containing 'channel_id', 'twitter_user_name', and 'last_updated' for the feeds.
 
         特定のDiscordギルドに設定されているすべてのTwitterフィードを取得します。
 
         Returns:
-            list: 各フィードの 'channel_id' と 'twitter_user_name' を含む辞書のリスト。
+            list: 各フィードの 'channel_id', 'twitter_user_name', 'last_updated' を含む辞書のリスト。
         """
         self.cursor.execute(
             """
-            SELECT channel_id, twitter_user_name FROM twitter_feeds
+            SELECT channel_id, twitter_user_name, last_updated FROM twitter_feeds
             WHERE guild_id = ?
             """,
             (guild_id,)
@@ -436,27 +439,29 @@ class Database:
 
     def get_tweet_history(self, channel_id, twitter_user_name):
         """
-        Retrieve the last two tweet IDs for a specific Twitter feed.
+        Retrieve the last two tweet IDs and URLs for a specific Twitter feed.
 
         Args:
             channel_id (int): The ID of the Discord channel associated with the feed.
             twitter_user_name (str): The Twitter username associated with the feed.
 
         Returns:
-            tuple: A tuple containing (last_tweet_id, second_last_tweet_id) if found, otherwise (None, None).
+            tuple: A tuple containing (last_tweet_id, second_last_tweet_id, last_tweet_url, second_last_tweet_url) if found, 
+                  otherwise (None, None, None, None).
 
-        特定のTwitterフィードの最新2つのツイートIDを取得します。
+        特定のTwitterフィードの最新2つのツイートIDとURLを取得します。
 
         Args:
             channel_id (int): フィードに関連付けられたDiscordチャンネルのID。
             twitter_user_name (str): フィードに関連付けられたTwitterユーザー名。
 
         Returns:
-            tuple: 見つかった場合は (last_tweet_id, second_last_tweet_id) のタプル、それ以外の場合は (None, None)。
+            tuple: 見つかった場合は (last_tweet_id, second_last_tweet_id, last_tweet_url, second_last_tweet_url) のタプル、
+                  それ以外の場合は (None, None, None, None)。
         """
         self.cursor.execute(
             """
-            SELECT th.last_tweet_id, th.second_last_tweet_id
+            SELECT th.last_tweet_id, th.second_last_tweet_id, th.last_tweet_url, th.second_last_tweet_url
             FROM tweet_history th
             JOIN twitter_feeds tf ON th.feed_id = tf.id
             WHERE tf.channel_id = ? AND tf.twitter_user_name = ?
@@ -466,30 +471,111 @@ class Database:
         row = self.cursor.fetchone()
 
         if row:
-            return row['last_tweet_id'], row['second_last_tweet_id']
+            return row['last_tweet_id'], row['second_last_tweet_id'], row['last_tweet_url'], row['second_last_tweet_url']
         else:
-            return None, None
+            return None, None, None, None
 
-    def update_tweet_history(self, channel_id, twitter_user_name, last_tweet_id, second_last_tweet_id):
+    def get_twitter_user_last_updated(self, twitter_user_name):
         """
-        Update the tweet history (last two tweet IDs) for a specific Twitter feed.
+        Get the last updated timestamp for a specific Twitter user.
+        This is used to determine if we need to make a new API request or can use cached data.
+
+        Args:
+            twitter_user_name (str): The Twitter username.
+
+        Returns:
+            int: The Unix timestamp of when the user was last updated, or 0 if never updated.
+
+        特定のTwitterユーザーの最終更新タイムスタンプを取得します。
+        これは、新しいAPIリクエストを行う必要があるか、キャッシュされたデータを使用できるかを判断するために使用されます。
+
+        Args:
+            twitter_user_name (str): Twitterユーザー名。
+
+        Returns:
+            int: ユーザーが最後に更新された時のUnixタイムスタンプ、または更新されたことがない場合は0。
+        """
+        self.cursor.execute(
+            """
+            SELECT MAX(last_updated) as last_updated
+            FROM twitter_feeds
+            WHERE twitter_user_name = ?
+            """,
+            (twitter_user_name,)
+        )
+        row = self.cursor.fetchone()
+        
+        if row and row['last_updated']:
+            return row['last_updated']
+        else:
+            return 0
+            
+    def update_twitter_user_last_updated(self, twitter_user_name, timestamp=None):
+        """
+        Update the last updated timestamp for a specific Twitter user.
+        This is called after successfully fetching new tweets for the user.
+
+        Args:
+            twitter_user_name (str): The Twitter username.
+            timestamp (int, optional): The Unix timestamp to set. If None, current time is used.
+
+        Returns:
+            bool: True if at least one feed was updated, False otherwise.
+
+        特定のTwitterユーザーの最終更新タイムスタンプを更新します。
+        これは、ユーザーの新しいツイートの取得に成功した後に呼び出されます。
+
+        Args:
+            twitter_user_name (str): Twitterユーザー名。
+            timestamp (int, optional): 設定するUnixタイムスタンプ。Noneの場合、現在の時刻が使用されます。
+
+        Returns:
+            bool: 少なくとも1つのフィードが更新された場合はTrue、それ以外の場合はFalse。
+        """
+        current_time = timestamp or int(time.time())
+        
+        try:
+            with self.conn:
+                self.cursor.execute(
+                    """
+                    UPDATE twitter_feeds
+                    SET last_updated = ?
+                    WHERE twitter_user_name = ?
+                    """,
+                    (current_time, twitter_user_name)
+                )
+                return self.cursor.rowcount > 0
+        except sqlite3.Error as e:
+            if self.settings:
+                print(self.settings.lang_data.get("db_error_update_last_updated", "Database error in update_twitter_user_last_updated: {0}").format(e))
+            else:
+                print(f"Database error in update_twitter_user_last_updated: {e}")
+            return False
+    
+    def update_tweet_history(self, channel_id, twitter_user_name, last_tweet_id, second_last_tweet_id, last_tweet_url=None, second_last_tweet_url=None):
+        """
+        Update the tweet history (last two tweet IDs and URLs) for a specific Twitter feed.
 
         Args:
             channel_id (int): The ID of the Discord channel associated with the feed.
             twitter_user_name (str): The Twitter username associated with the feed.
             last_tweet_id (int): The ID of the most recent tweet.
             second_last_tweet_id (int): The ID of the second most recent tweet.
+            last_tweet_url (str, optional): The URL of the most recent tweet.
+            second_last_tweet_url (str, optional): The URL of the second most recent tweet.
 
         Returns:
             bool: True if the history was successfully updated, False if the feed did not exist.
 
-        特定のTwitterフィードのツイート履歴（最新2つのツイートID）を更新します。
+        特定のTwitterフィードのツイート履歴（最新2つのツイートIDとURL）を更新します。
 
         Args:
             channel_id (int): フィードに関連付けられたDiscordチャンネルのID。
             twitter_user_name (str): フィードに関連付けられたTwitterユーザー名。
             last_tweet_id (int): 最新のツイートID。
             second_last_tweet_id (int): 2番目に新しいツイートID。
+            last_tweet_url (str, optional): 最新のツイートのURL。
+            second_last_tweet_url (str, optional): 2番目に新しいツイートのURL。
 
         Returns:
             bool: 履歴が正常に更新された場合はTrue、フィードが存在しなかった場合はFalse。
@@ -514,15 +600,15 @@ class Database:
 
                 feed_id = row['id']
 
-                # Update the last_tweet_id and second_last_tweet_id for the found feed.
-                # 見つかったフィードのlast_tweet_idとsecond_last_tweet_idを更新します。
+                # Update the last_tweet_id, second_last_tweet_id, last_tweet_url, and second_last_tweet_url for the found feed.
+                # 見つかったフィードのlast_tweet_id、second_last_tweet_id、last_tweet_url、second_last_tweet_urlを更新します。
                 self.cursor.execute(
                     """
                     UPDATE tweet_history
-                    SET last_tweet_id = ?, second_last_tweet_id = ?
+                    SET last_tweet_id = ?, second_last_tweet_id = ?, last_tweet_url = ?, second_last_tweet_url = ?
                     WHERE feed_id = ?
                     """,
-                    (last_tweet_id, second_last_tweet_id, feed_id)
+                    (last_tweet_id, second_last_tweet_id, last_tweet_url, second_last_tweet_url, feed_id)
                 )
 
                 return True

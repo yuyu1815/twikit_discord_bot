@@ -17,6 +17,10 @@ class Settings:
     注：ギルド設定およびTwitterメッセージのJSONベースのメソッドは非推奨であり、
     将来のバージョンで削除されます。代わりにDatabaseクラスを使用してください。
     """
+    
+    # APIリクエストをスキップする時間（秒）
+    # Time interval (in seconds) to skip API requests for the same Twitter user
+    USER_UPDATE_INTERVAL_SECONDS = 60
 
     def __init__(self, language='en_US'):
         """
@@ -43,11 +47,6 @@ class Settings:
         # 言語ファイルのディレクトリパスを定義します。
         self.lang_dir = self.project_root / 'src' / 'lang'
 
-        # RSS feed settings
-        # RSSフィードの設定
-        self.rss_feed_output_dir = self.data_dir / 'rss_feeds'
-        self.rss_feed_cooldown_minutes = 5
-        self.rss_feed_max_tweets = 20
 
         # Load language data from the specified language file.
         # 指定された言語ファイルから言語データをロードします。

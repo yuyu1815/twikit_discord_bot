@@ -88,8 +88,8 @@ class MyBot(commands.Bot):
         # 必要に応じて、古いJSONファイルから新しいデータベース構造へのデータ移行を実行します。
         await self.migrate_data_if_needed()
 
-        # RSS functionality is now used instead of periodic tweet checking
-        # 定期的なツイートチェックの代わりにRSS機能が使用されるようになりました
+        # Automatic tweet checking functionality is used to fetch and post tweets
+        # 自動ツイートチェック機能がツイートの取得と投稿に使用されています
 
     async def migrate_data_if_needed(self):
         """
@@ -199,8 +199,8 @@ class MyBot(commands.Bot):
             print(self.settings.lang_data["bot_setting_url"].format(self.application_id))
             print(self.settings.lang_data["bot_invite_url"].format(self.application_id))
 
-    # The periodic tweet checking functionality has been removed and replaced with RSS functionality.
-    # 定期的なツイートチェック機能は削除され、RSS機能に置き換えられました。
+    # The periodic tweet checking functionality has been updated to use the TwitterClientManager.
+    # 定期的なツイートチェック機能はTwitterClientManagerを使用するように更新されました。
 
     # The _process_twitter_feed method has been removed as it was only used by the check_twitter_updates task.
     # _process_twitter_feedメソッドはcheck_twitter_updatesタスクでのみ使用されていたため、削除されました。

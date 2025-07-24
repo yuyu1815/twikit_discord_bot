@@ -168,13 +168,13 @@ class TwitterClientManager:
         # クライアントがアクティブでないか利用できない場合、エラーを発生させます。
         raise RuntimeError("No Twitter clients are available for analysis operations")
 
-    async def get_rss_client(self):
+    async def get_authenticated_client(self):
         """
-        Get a client for RSS-like operations (e.g., fetching user timelines for new tweets).
-        This operation typically requires an authenticated client.
+        Get an authenticated client for operations that require authentication
+        (e.g., fetching user timelines for new tweets).
 
-        RSSのような操作（例: 新しいツイートのユーザータイムラインの取得）に適したクライアントを取得します。
-        この操作は通常、認証済みクライアントを必要とします。
+        認証を必要とする操作（例: 新しいツイートのユーザータイムラインの取得）のための
+        認証済みクライアントを取得します。
 
         Returns:
             Client: The authenticated client.
@@ -185,7 +185,7 @@ class TwitterClientManager:
                           認証済みクライアントが利用できない場合。
         """
         if not self.auth_client_active:
-            raise RuntimeError("Authenticated Twitter client is not available for RSS operations")
+            raise RuntimeError("Authenticated Twitter client is not available for timeline operations")
 
         return self.auth_client
 

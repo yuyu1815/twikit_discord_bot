@@ -57,7 +57,7 @@
   "twitter_guest_activation_failed": "Guest client activation failed: {0}",
   "twitter_auth_activation_failed": "Authenticated client activation failed: {0}",
   "twitter_error_fetching_thread": "Error fetching tweet in thread: {0}",
-  "twitter_error_getting_rss_tweets": "Error getting RSS-like tweets: {0}",
+  "twitter_error_getting_latest_tweets": "Error getting latest tweets: {0}",
   "twitter_commands_message_log": "{0}",
 
   "settings_lang_file_not_found": "Error: Could not find language file {0}",
