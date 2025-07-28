@@ -1,7 +1,9 @@
 import discord
 import os
 import time
+import logging
 from discord.ext import tasks, commands
+from discord import app_commands
 from pathlib import Path
 import importlib
 import inspect
@@ -10,6 +12,18 @@ from src.core.twitter_client import TwitterClient
 from src.core.twitter_client_manager import TwitterClientManager
 from src.config.settings import Settings
 from src.core.database import Database
+
+# Set up logging
+logger = logging.getLogger('bot')
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler(filename='bot.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+
+# Add console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(console_handler)
 
 class MyBot(commands.Bot):
     """
@@ -21,7 +35,7 @@ class MyBot(commands.Bot):
     このクラスは、Discord連携、Twitter APIとの対話、データベース管理など、ボットのコア機能をカプセル化します。
     """
 
-    def __init__(self, language='en_US'):
+    def __init__(self, language: str = 'en_US'):
         """
         Initialize the bot with the specified language.
         It sets up Discord intents, loads environment variables, and initializes
@@ -36,9 +50,12 @@ class MyBot(commands.Bot):
         Args:
             language (str): 使用する言語コード（デフォルト: 'en_US'）。
         """
-        # Set up Discord intents to receive necessary events.
-        # 必要なイベントを受信するためにDiscordのインテントを設定します。
-        intents = discord.Intents.all()
+        # Set up Discord intents to receive only necessary events.
+        # 必要なイベントのみを受信するためにDiscordのインテントを設定します。
+        intents = discord.Intents.default()
+        intents.guilds = True       # For server join/leave events
+        intents.guild_messages = True  # For message events in servers
+        intents.message_content = True  # To read message content for URL fixing
 
         # Load environment variables for bot token and application ID.
         # ボットのトークンとアプリケーションIDの環境変数をロードします。
@@ -60,38 +77,78 @@ class MyBot(commands.Bot):
         # JSONからデータベースへの移行が実行されたかどうかを追跡するフラグ。
         self.migration_done = False
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         """
         Set up the bot when it's starting.
         This method is called automatically by discord.py after the bot is connected.
         It loads cogs, initializes the Twitter client, performs data migration, and starts background tasks.
+        
+        This method ensures proper initialization sequence and error handling.
 
         ボットの起動時にセットアップを行います。
         このメソッドは、ボットが接続された後にdiscord.pyによって自動的に呼び出されます。
         コグのロード、Twitterクライアントの初期化、データ移行の実行、バックグラウンドタスクの開始を行います。
+        
+        このメソッドは、適切な初期化シーケンスとエラーハンドリングを保証します。
         """
-        print(self.settings.lang_data["bot_setting_up"])
+        try:
+            logger.info(self.settings.lang_data["bot_setting_up"])
 
-        # Load all command extensions (cogs) from the designated directory.
-        # 指定されたディレクトリからすべてのコマンド拡張機能（コグ）をロードします。
-        await self.load_cogs()
+            # Load all command extensions (cogs) from the designated directory.
+            # 指定されたディレクトリからすべてのコマンド拡張機能（コグ）をロードします。
+            await self.load_cogs()
 
-        # Initialize the Twitter client, which includes loading cookies.
-        # クッキーのロードを含むTwitterクライアントを初期化します。
-        await self.twitter_client.load_client()
+            # Initialize the Twitter client, which includes loading cookies.
+            # クッキーのロードを含むTwitterクライアントを初期化します。
+            await self.twitter_client.load_client()
 
-        # Initialize the Twitter client manager, which handles both guest and authenticated clients.
-        # ゲストと認証済みの両方のクライアントを処理するTwitterクライアントマネージャーを初期化します。
-        await self.twitter_client_manager.initialize()
+            # Initialize the Twitter client manager, which handles both guest and authenticated clients.
+            # ゲストと認証済みの両方のクライアントを処理するTwitterクライアントマネージャーを初期化します。
+            await self.twitter_client_manager.initialize()
 
-        # Perform data migration from old JSON files to the new database structure if necessary.
-        # 必要に応じて、古いJSONファイルから新しいデータベース構造へのデータ移行を実行します。
-        await self.migrate_data_if_needed()
+            # Perform data migration from old JSON files to the new database structure if necessary.
+            # 必要に応じて、古いJSONファイルから新しいデータベース構造へのデータ移行を実行します。
+            await self.migrate_data_if_needed()
 
-        # Automatic tweet checking functionality is used to fetch and post tweets
-        # 自動ツイートチェック機能がツイートの取得と投稿に使用されています
+            # Perform migration to new structure (global_twitter_users and guild_twitter_feeds)
+            # 新設計（global_twitter_usersとguild_twitter_feeds）への移行を実行します。
+            await self.migrate_to_new_structure_if_needed()
 
-    async def migrate_data_if_needed(self):
+            # Add error handler for app commands
+            self.tree.error(self.on_app_command_error)
+
+            # Automatic tweet checking functionality is used to fetch and post tweets
+            # 自動ツイートチェック機能がツイートの取得と投稿に使用されています
+            
+            logger.info("Bot setup completed successfully")
+        except Exception as e:
+            logger.error(f"Error in setup_hook: {e}", exc_info=True)
+            raise
+
+    async def setup_for_sync(self) -> None:
+        """
+        Lightweight setup method for syncing slash commands only.
+        This method loads cogs and sets up the command tree without initializing Twitter clients.
+        
+        スラッシュコマンド同期専用の軽量セットアップメソッドです。
+        このメソッドはコグをロードし、Twitterクライアントの初期化なしでコマンドツリーを設定します。
+        """
+        try:
+            logger.info("Setting up bot for command sync...")
+
+            # Load all command extensions (cogs) from the designated directory.
+            # 指定されたディレクトリからすべてのコマンド拡張機能（コグ）をロードします。
+            await self.load_cogs()
+
+            # Add error handler for app commands
+            self.tree.error(self.on_app_command_error)
+            
+            logger.info("Bot setup for sync completed successfully")
+        except Exception as e:
+            logger.error(f"Error in setup_for_sync: {e}", exc_info=True)
+            raise
+
+    async def migrate_data_if_needed(self) -> None:
         """
         Migrate data from JSON files to the database if it hasn't been done yet.
         This is a one-time operation that happens at bot startup.
@@ -110,17 +167,17 @@ class MyBot(commands.Bot):
         if not discord_settings_file.exists() and not twitter_msg_file.exists():
             self.db.set_migration_completed()
             self.migration_done = True
-            # print(self.settings.lang_data["bot_migration_not_needed"])  # Optional: Add a new lang key for this
+            logger.info(self.settings.lang_data.get("bot_migration_not_needed", "No JSON files to migrate, marking migration as complete"))
             return
 
         # Check if migration has already been completed in the database.
         # データベースで移行が既に完了しているかを確認します。
         if self.db.is_migration_completed():
             self.migration_done = True
-            print(self.settings.lang_data["bot_migration_completed"])
+            logger.info(self.settings.lang_data["bot_migration_completed"])
             return
 
-        print(self.settings.lang_data["bot_migration_starting"])
+        logger.info(self.settings.lang_data["bot_migration_starting"])
 
         # Perform the migration using the database class method.
         # データベースクラスのメソッドを使用して移行を実行します。
@@ -128,7 +185,7 @@ class MyBot(commands.Bot):
 
         if success:
             self.migration_done = True
-            print(self.settings.lang_data["bot_migration_success"])
+            logger.info(self.settings.lang_data["bot_migration_success"])
 
             # Rename JSON files to prevent them from being read again after successful migration.
             # 移行が成功した後、JSONファイルが再度読み込まれないように名前を変更します。
@@ -139,19 +196,19 @@ class MyBot(commands.Bot):
 
                 if discord_settings_file.exists():
                     discord_settings_file.rename(data_dir / 'DiscordSetting.json.migrated')
-                    print(self.settings.lang_data["bot_renamed_file"].format(discord_settings_file, f"{discord_settings_file}.migrated"))
+                    logger.info(self.settings.lang_data["bot_renamed_file"].format(discord_settings_file, f"{discord_settings_file}.migrated"))
 
                 if twitter_msg_file.exists():
                     twitter_msg_file.rename(data_dir / 'Twitter_msg.json.migrated')
-                    print(self.settings.lang_data["bot_renamed_file"].format(twitter_msg_file, f"{twitter_msg_file}.migrated"))
+                    logger.info(self.settings.lang_data["bot_renamed_file"].format(twitter_msg_file, f"{twitter_msg_file}.migrated"))
             except Exception as e:
-                print(self.settings.lang_data["bot_rename_failed"].format(e))
-                print(self.settings.lang_data["bot_rename_failed_continue"])
+                logger.error(self.settings.lang_data["bot_rename_failed"].format(e), exc_info=e)
+                logger.warning(self.settings.lang_data["bot_rename_failed_continue"])
         else:
-            print(self.settings.lang_data["bot_migration_failed"])
-            print(self.settings.lang_data["bot_migration_failed_check"])
+            logger.error(self.settings.lang_data["bot_migration_failed"])
+            logger.error(self.settings.lang_data["bot_migration_failed_check"])
 
-    async def load_cogs(self):
+    async def load_cogs(self) -> None:
         """
         Load all cogs (extensions) from the 'cogs' directory.
         Each Python file in the 'cogs' directory is treated as a potential cog.
@@ -182,9 +239,9 @@ class MyBot(commands.Bot):
                     # オブジェクトがクラスであり、commands.Cogのサブクラスであり、かつcommands.Cog自体ではないことを確認します。
                     if inspect.isclass(obj) and issubclass(obj, commands.Cog) and obj != commands.Cog:
                         await self.add_cog(obj(self))
-                        print(self.settings.lang_data["bot_loaded_cog"].format(name))
+                        logger.info(self.settings.lang_data["bot_loaded_cog"].format(name))
             except Exception as e:
-                print(self.settings.lang_data["bot_failed_load_cog"].format(module_path, e))
+                logger.error(self.settings.lang_data["bot_failed_load_cog"].format(module_path, e), exc_info=e)
 
     async def on_ready(self):
         """
@@ -194,10 +251,30 @@ class MyBot(commands.Bot):
         ボットが準備完了し、Discordに接続されたときのイベントハンドラです。
         確認メッセージとボットの招待URLを出力します。
         """
-        print(self.settings.lang_data["bot_login_ok"])
+        logger.info(self.settings.lang_data["bot_login_ok"])
         if self.application_id:
-            print(self.settings.lang_data["bot_setting_url"].format(self.application_id))
-            print(self.settings.lang_data["bot_invite_url"].format(self.application_id))
+            logger.info(self.settings.lang_data["bot_setting_url"].format(self.application_id))
+            logger.info(self.settings.lang_data["bot_invite_url"].format(self.application_id))
+            
+    async def on_command_error(self, ctx, error):
+        """
+        Global error handler for traditional prefix commands.
+        This method is called when an error occurs during the execution of a command.
+        
+        従来の接頭辞コマンドのグローバルエラーハンドラー。
+        このメソッドは、コマンドの実行中にエラーが発生した場合に呼び出されます。
+        
+        Args:
+            ctx (commands.Context): The context of the command.
+            error (commands.CommandError): The error that occurred.
+        """
+        if isinstance(error, commands.CommandNotFound):
+            await ctx.send(self.settings.lang_data.get("error_command_not_found", "Command not found."))
+        elif isinstance(error, commands.MissingPermissions):
+            await ctx.send(self.settings.lang_data.get("error_missing_permissions", "You don't have permission to use this command."))
+        else:
+            logger.error(f"Command error: {error}", exc_info=error)
+            await ctx.send(self.settings.lang_data.get("error_generic", "An error occurred: {0}").format(error))
 
     # The periodic tweet checking functionality has been updated to use the TwitterClientManager.
     # 定期的なツイートチェック機能はTwitterClientManagerを使用するように更新されました。
@@ -212,14 +289,77 @@ class MyBot(commands.Bot):
         """
         Start the Discord bot using the token from environment variables.
         Raises a ValueError if the token is not found.
+        
+        This method ensures proper startup sequence and error handling.
 
         環境変数から取得したトークンを使用してDiscordボットを起動します。
         トークンが見つからない場合はValueErrorを発生させます。
+        
+        このメソッドは、適切な起動シーケンスとエラーハンドリングを保証します。
         """
         if not self.token:
             raise ValueError(self.settings.lang_data["bot_no_token"])
 
-        await self.start(self.token)
+        try:
+            logger.info("Starting Discord bot...")
+            await self.start(self.token)
+        except Exception as e:
+            logger.error(f"Error starting Discord bot: {e}", exc_info=True)
+            raise
+
+    async def migrate_to_new_structure_if_needed(self):
+        """
+        Migrate data to the new structure (global_twitter_users and guild_twitter_feeds) if needed.
+        This is a one-time operation that happens at bot startup.
+        """
+        logger.info("Checking for new structure migration...")
+        
+        # Check if there's any data in the new tables
+        self.db.cursor.execute("SELECT COUNT(*) FROM global_twitter_users")
+        global_users_count = self.db.cursor.fetchone()[0]
+        
+        self.db.cursor.execute("SELECT COUNT(*) FROM guild_twitter_feeds")
+        guild_feeds_count = self.db.cursor.fetchone()[0]
+        
+        # If both new tables are empty, perform migration
+        if global_users_count == 0 and guild_feeds_count == 0:
+            logger.info("Starting migration to new structure...")
+            success = self.db.migrate_to_new_structure()
+            if success:
+                logger.info("Migration to new structure completed successfully")
+            else:
+                logger.error("Migration to new structure failed")
+        else:
+            logger.info("New structure migration not needed (data already exists)")
+            
+    async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """
+        Global error handler for application commands (slash commands).
+        This method is called when an error occurs during the execution of an application command.
+        
+        アプリケーションコマンド（スラッシュコマンド）のグローバルエラーハンドラー。
+        このメソッドは、アプリケーションコマンドの実行中にエラーが発生した場合に呼び出されます。
+        
+        Args:
+            interaction (discord.Interaction): The interaction that triggered the command.
+            error (app_commands.AppCommandError): The error that occurred.
+        """
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(
+                self.settings.lang_data.get("error_command_cooldown", "This command is on cooldown. Try again in {:.2f} seconds.").format(error.retry_after),
+                ephemeral=True
+            )
+        elif isinstance(error, app_commands.MissingPermissions):
+            await interaction.response.send_message(
+                self.settings.lang_data.get("error_missing_permissions", "You don't have permission to use this command."),
+                ephemeral=True
+            )
+        else:
+            logger.error(f"Application command error: {error}", exc_info=error)
+            await interaction.response.send_message(
+                self.settings.lang_data.get("error_generic", "An error occurred: {0}").format(error),
+                ephemeral=True
+            )
 
 def create_bot(language='en_US'):
     """
@@ -245,15 +385,32 @@ async def run_bot(language='en_US'):
     """
     Asynchronously creates and runs a new bot instance.
     This is the entry point for starting the bot application.
+    
+    This function ensures proper initialization and error handling for the bot.
 
     Args:
         language (str): The language code to use for the bot (default: 'en_US').
 
     新しいボットインスタンスを非同期で作成し、実行します。
     これはボットアプリケーションを開始するためのエントリポイントです。
+    
+    この関数は、ボットの適切な初期化とエラーハンドリングを保証します。
 
     Args:
         language (str): ボットに使用する言語コード（デフォルト: 'en_US'）。
     """
-    bot = create_bot(language)
-    await bot.start_bot()
+    bot = None
+    try:
+        # Create bot instance
+        bot = create_bot(language)
+        
+        # Start the bot
+        await bot.start_bot()
+    except Exception as e:
+        logger.error(f"Error in run_bot: {e}", exc_info=True)
+        if bot:
+            try:
+                await bot.close()
+            except Exception as close_error:
+                logger.error(f"Error closing bot: {close_error}")
+        raise

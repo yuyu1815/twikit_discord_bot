@@ -135,6 +135,31 @@ class Database:
                 "INSERT INTO migration_info (id, version, completed, completed_at) VALUES (1, 1, 0, NULL)"
             )
 
+        # --- 新設計用テーブル ---
+        # グローバルなTwitterユーザーデータ
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS global_twitter_users (
+            twitter_user_name TEXT PRIMARY KEY,
+            last_tweet_id TEXT,
+            last_tweet_url TEXT,
+            second_last_tweet_id TEXT,
+            second_last_tweet_url TEXT,
+            last_updated INTEGER DEFAULT 0
+        )
+        ''')
+        # ギルドごとのTwitterユーザー紐付け
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS guild_twitter_feeds (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            twitter_user_name TEXT NOT NULL,
+            created_at INTEGER DEFAULT 0,
+            UNIQUE(guild_id, channel_id, twitter_user_name)
+        )
+        ''')
+        # --- 既存テーブル（後方互換） ---
+
         # Commit the changes to the database.
         # データベースへの変更をコミットします。
         self.conn.commit()
@@ -790,3 +815,173 @@ class Database:
                 print(f"Error during migration: {e}")
             # The context manager will roll back on exception
             return False
+
+    # --- 新設計用メソッド ---
+    def get_all_twitter_users(self):
+        """すべてのTwitterユーザー名を取得"""
+        self.cursor.execute('SELECT twitter_user_name FROM global_twitter_users')
+        return [row['twitter_user_name'] for row in self.cursor.fetchall()]
+
+    def get_global_twitter_user(self, twitter_user_name):
+        """グローバルなTwitterユーザーデータを取得"""
+        self.cursor.execute('''
+            SELECT * FROM global_twitter_users 
+            WHERE twitter_user_name = ?
+        ''', (twitter_user_name,))
+        return self.cursor.fetchone()
+
+    def update_global_twitter_user(self, twitter_user_name, last_tweet_id, last_tweet_url, 
+                                  second_last_tweet_id=None, second_last_tweet_url=None):
+        """グローバルなTwitterユーザーデータを更新"""
+        self.cursor.execute('''
+            INSERT OR REPLACE INTO global_twitter_users 
+            (twitter_user_name, last_tweet_id, last_tweet_url, second_last_tweet_id, second_last_tweet_url, last_updated) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (twitter_user_name, last_tweet_id, last_tweet_url, second_last_tweet_id, second_last_tweet_url, int(time.time())))
+        self.conn.commit()
+
+    def get_guilds_for_twitter_user(self, twitter_user_name):
+        """特定のTwitterユーザーをフォローしているギルドとチャンネルを取得"""
+        self.cursor.execute('''
+            SELECT guild_id, channel_id FROM guild_twitter_feeds 
+            WHERE twitter_user_name = ?
+        ''', (twitter_user_name,))
+        return self.cursor.fetchall()
+
+    def migrate_to_new_structure(self):
+        """既存のデータを新設計のテーブルに移行"""
+        try:
+            with self.conn:
+                # 既存のtwitter_feedsからguild_twitter_feedsに移行
+                self.cursor.execute('''
+                    INSERT OR IGNORE INTO guild_twitter_feeds 
+                    (guild_id, channel_id, twitter_user_name, created_at)
+                    SELECT guild_id, channel_id, twitter_user_name, last_updated 
+                    FROM twitter_feeds
+                ''')
+                
+                # 既存のtweet_historyからglobal_twitter_usersに移行
+                self.cursor.execute('''
+                    INSERT OR IGNORE INTO global_twitter_users 
+                    (twitter_user_name, last_tweet_id, last_tweet_url, second_last_tweet_id, second_last_tweet_url)
+                    SELECT DISTINCT tf.twitter_user_name, th.last_tweet_id, th.last_tweet_url, 
+                           th.second_last_tweet_id, th.second_last_tweet_url
+                    FROM twitter_feeds tf
+                    LEFT JOIN tweet_history th ON tf.id = th.feed_id
+                    WHERE tf.twitter_user_name IS NOT NULL
+                ''')
+                
+                print("Migration to new structure completed successfully")
+                return True
+        except Exception as e:
+            print(f"Error during migration to new structure: {e}")
+            return False
+
+    def get_current_urls_for_user(self, twitter_user_name):
+        """
+        指定されたTwitterユーザーの現在のURLを取得します。
+        
+        Args:
+            twitter_user_name (str): Twitterユーザー名
+            
+        Returns:
+            dict: 最新ツイートと2番目に新しいツイートのURLを含む辞書
+        """
+        self.cursor.execute('''
+            SELECT last_tweet_url, second_last_tweet_url, last_updated
+            FROM global_twitter_users 
+            WHERE twitter_user_name = ?
+        ''', (twitter_user_name,))
+        row = self.cursor.fetchone()
+        
+        if row:
+            return {
+                'last_tweet_url': row['last_tweet_url'],
+                'second_last_tweet_url': row['second_last_tweet_url'],
+                'last_updated': row['last_updated']
+            }
+        return None
+
+    def get_all_current_urls(self):
+        """
+        すべてのTwitterユーザーの現在のURLを取得します。
+        
+        Returns:
+            list: 各ユーザーのURL情報を含む辞書のリスト
+        """
+        self.cursor.execute('''
+            SELECT twitter_user_name, last_tweet_url, second_last_tweet_url, last_updated
+            FROM global_twitter_users 
+            WHERE last_tweet_url IS NOT NULL OR second_last_tweet_url IS NOT NULL
+            ORDER BY last_updated DESC
+        ''')
+        
+        results = []
+        for row in self.cursor.fetchall():
+            results.append({
+                'twitter_user_name': row['twitter_user_name'],
+                'last_tweet_url': row['last_tweet_url'],
+                'second_last_tweet_url': row['second_last_tweet_url'],
+                'last_updated': row['last_updated']
+            })
+        return results
+
+    def get_urls_by_guild(self, guild_id):
+        """
+        指定されたギルドで設定されているTwitterユーザーのURLを取得します。
+        
+        Args:
+            guild_id (int): DiscordギルドID
+            
+        Returns:
+            list: ギルドで設定されているユーザーのURL情報を含む辞書のリスト
+        """
+        self.cursor.execute('''
+            SELECT gtf.twitter_user_name, gtf.channel_id, 
+                   gtu.last_tweet_url, gtu.second_last_tweet_url, gtu.last_updated
+            FROM guild_twitter_feeds gtf
+            LEFT JOIN global_twitter_users gtu ON gtf.twitter_user_name = gtu.twitter_user_name
+            WHERE gtf.guild_id = ?
+            ORDER BY gtu.last_updated DESC
+        ''', (guild_id,))
+        
+        results = []
+        for row in self.cursor.fetchall():
+            results.append({
+                'twitter_user_name': row['twitter_user_name'],
+                'channel_id': row['channel_id'],
+                'last_tweet_url': row['last_tweet_url'],
+                'second_last_tweet_url': row['second_last_tweet_url'],
+                'last_updated': row['last_updated']
+            })
+        return results
+
+    def get_urls_by_channel(self, channel_id):
+        """
+        指定されたチャンネルで設定されているTwitterユーザーのURLを取得します。
+        
+        Args:
+            channel_id (int): DiscordチャンネルID
+            
+        Returns:
+            list: チャンネルで設定されているユーザーのURL情報を含む辞書のリスト
+        """
+        self.cursor.execute('''
+            SELECT gtf.twitter_user_name, gtf.guild_id,
+                   gtu.last_tweet_url, gtu.second_last_tweet_url, gtu.last_updated
+            FROM guild_twitter_feeds gtf
+            LEFT JOIN global_twitter_users gtu ON gtf.twitter_user_name = gtu.twitter_user_name
+            WHERE gtf.channel_id = ?
+            ORDER BY gtu.last_updated DESC
+        ''', (channel_id,))
+        
+        results = []
+        for row in self.cursor.fetchall():
+            results.append({
+                'twitter_user_name': row['twitter_user_name'],
+                'guild_id': row['guild_id'],
+                'last_tweet_url': row['last_tweet_url'],
+                'second_last_tweet_url': row['second_last_tweet_url'],
+                'last_updated': row['last_updated']
+            })
+        return results
